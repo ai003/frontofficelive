@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for Hacker News-inspired theme */
+:root {
+  /* Header colors */
+  --header-blue: #4285f4;
+  --header-text: #ffffff;
+  
+  /* Background colors */
+  --body-bg: #ffffff;
+  --container-bg: #f6f6f6;
+  --post-bg: #ffffff;
+  --comment-bg: #f8f9fa;
+  
+  /* Border and separator colors */
+  --border-light: #e1e1e1;
+  --border-medium: #d1d5db;
+  --border-dark: #9ca3af;
+  
+  /* Text colors */
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  
+  /* Layout constraints */
+  --max-width: 860px;
+}
+
+/* Base body styling */
+body {
+  background-color: var(--body-bg);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+/* Main container styling */
+.main-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background-color: var(--container-bg);
+  min-height: 100vh;
+  padding: 0 16px;
+}
+
+/* Content area with padding */
+.content-area {
+  padding: 16px 0;
+}
