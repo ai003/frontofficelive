@@ -38,18 +38,8 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
 
   return (
     // Clean white card matching PostCard styling
-    <div 
-      className="mb-4 p-4 rounded-sm"
-      style={{ 
-        backgroundColor: 'var(--post-bg)',
-        border: '1px solid var(--border-light)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-      }}
-    >
-      <h2 
-        className="text-lg font-medium mb-4"
-        style={{ color: 'var(--text-primary)' }}
-      >
+    <div className="mb-4 p-4 rounded-sm bg-white border border-gray-200 shadow-sm">
+      <h2 className="text-lg font-medium mb-4 text-gray-900">
         Submit a new post
       </h2>
       
@@ -59,8 +49,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
         <div>
           <label 
             htmlFor="title" 
-            className="block text-sm font-medium mb-1"
-            style={{ color: 'var(--text-secondary)' }}
+            className="block text-sm font-medium mb-1 text-gray-600"
           >
             Title
           </label>
@@ -69,10 +58,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
             id="title"
             value={title} // Controlled input - value comes from state
             onChange={(e) => setTitle(e.target.value)} // Update state on every keystroke
-            className="w-full p-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            style={{ 
-              border: '1px solid var(--border-medium)'
-            }}
+            className="w-full p-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300"
             placeholder="What's your post about?"
             required // HTML5 validation - form won't submit if empty
           />
@@ -82,8 +68,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
         <div>
           <label 
             htmlFor="content" 
-            className="block text-sm font-medium mb-1"
-            style={{ color: 'var(--text-secondary)' }}
+            className="block text-sm font-medium mb-1 text-gray-600"
           >
             Text
           </label>
@@ -92,10 +77,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
             value={content} // Controlled input - value comes from state
             onChange={(e) => setContent(e.target.value)} // Update state on every keystroke
             rows={4}
-            className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-            style={{ 
-              border: '1px solid var(--border-medium)'
-            }}
+            className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300"
             placeholder="Share your basketball thoughts..."
             required // HTML5 validation - form won't submit if empty
           />
@@ -105,8 +87,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
         <div>
           <label 
             htmlFor="tags" 
-            className="block text-sm font-medium mb-1"
-            style={{ color: 'var(--text-secondary)' }}
+            className="block text-sm font-medium mb-1 text-gray-600"
           >
             Tags (optional)
           </label>
@@ -115,10 +96,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
             id="tags"
             value={tags} // Controlled input - value comes from state
             onChange={(e) => setTags(e.target.value)} // Update state on every keystroke
-            className="w-full p-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            style={{ 
-              border: '1px solid var(--border-medium)'
-            }}
+            className="w-full p-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300"
             placeholder="NBA, Trade, Lakers (comma separated)"
           />
         </div>
@@ -126,11 +104,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
         {/* Submit button with HN-style minimal design */}
         <button
           type="submit"
-          className="px-4 py-2 text-sm font-medium rounded-sm transition-colors"
-          style={{ 
-            backgroundColor: 'var(--header-blue)',
-            color: 'var(--header-text)'
-          }}
+          className="px-4 py-2 text-sm font-medium rounded-sm transition-colors bg-blue-500 text-white"
         >
           Submit
         </button>

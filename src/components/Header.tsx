@@ -1,20 +1,13 @@
+import ThemeToggle from './ThemeToggle';
+
 // Header component with Hacker News-inspired blue header styling
 // Displays the site logo and title in a clean, professional layout
 export default function Header() {
   return (
-    <header 
-      className="w-full py-3 px-4"
-      style={{ backgroundColor: 'var(--header-blue)' }}
-    >
+    <header className="w-full py-3 px-4 bg-blue-500 dark:bg-blue-700">
       {/* Container to constrain header content to max-width and center it */}
-      <div 
-        className="flex items-center gap-4"
-        style={{ 
-          maxWidth: 'var(--max-width)', 
-          margin: '0 auto',
-          color: 'var(--header-text)'
-        }}
-      >
+      <div className="flex items-center justify-between max-w-4xl mx-auto text-white">
+        <div className="flex items-center gap-4">
         {/* Logo container with fixed dimensions */}
         <div className="h-8 w-8 overflow-hidden rounded">
           <img 
@@ -25,10 +18,14 @@ export default function Header() {
           />
         </div>
         
-        {/* Site title with clean typography */}
-        <h1 className="text-xl font-semibold text-white">
-          FrontOffice.live
-        </h1>
+          {/* Site title with clean typography */}
+          <h1 className="text-xl font-semibold text-white">
+            FrontOffice.live
+          </h1>
+        </div>
+        
+        {/* Theme toggle button */}
+        <ThemeToggle />
       </div>
     </header>
   );

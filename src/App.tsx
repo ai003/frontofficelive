@@ -61,8 +61,8 @@ function App() {
       <Header />
       
       {/* Main container with Hacker News-inspired styling */}
-      <div className="main-container">
-        <div className="content-area">
+      <div className="max-w-4xl mx-auto bg-gray-100 dark:bg-gray-900 min-h-screen px-4">
+        <div className="py-4">
           {/* Create new post form */}
           <CreatePost onAddPost={addPost} />
           

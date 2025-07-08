@@ -4,19 +4,16 @@ export const users: User[] = [
   {
     id: '1',
     name: 'CoachMike',
-    avatar: '🏀',
     role: 'admin'
   },
   {
     id: '2',
     name: 'StatsGuru23',
-    avatar: '📊',
     role: 'user'
   },
   {
     id: '3',
     name: 'DraftExpert',
-    avatar: '🎯',
     role: 'user'
   }
 ];

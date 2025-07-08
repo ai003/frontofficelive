@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Comment } from '../types';
+import ProfilePicture from './ProfilePicture';
 
 // Define props interface for CommentSection component
 // This component manages HN-style threaded comments with clean visual hierarchy
@@ -33,27 +34,22 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
         <div 
           className="py-2 px-0"
           style={{ 
-            borderLeft: depth > 0 ? '1px solid var(--border-light)' : 'none',
+            borderLeft: depth > 0 ? '1px solid #e5e7eb' : 'none',
             paddingLeft: depth > 0 ? '12px' : '0'
           }}
         >
           {/* Comment metadata line */}
-          <div 
-            className="flex items-center gap-2 text-xs mb-1"
-            style={{ color: 'var(--text-muted)' }}
-          >
+          <div className="flex items-center gap-2 text-xs mb-1 text-gray-400">
+            <ProfilePicture user={comment.author} size="w-4 h-4" />
             <span className="font-medium">
-              {comment.author.avatar} {comment.author.name}
+              {comment.author.name}
             </span>
             <span>•</span>
             <span>{comment.createdAt.toLocaleDateString()}</span>
           </div>
           
           {/* Comment content with clean typography */}
-          <div 
-            className="text-sm leading-relaxed"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <div className="text-sm leading-relaxed text-gray-900">
             {comment.content}
           </div>
         </div>
@@ -63,7 +59,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
         
         {/* Add spacing between top-level comment threads */}
         {depth === 0 && replies.length === 0 && (
-          <div className="border-b" style={{ borderColor: 'var(--border-light)' }} />
+          <div className="border-b border-gray-200" />
         )}
       </div>
     );
@@ -89,15 +85,11 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
   };
 
   return (
-    <div 
-      className="mt-2 pt-3"
-      style={{ borderTop: '1px solid var(--border-light)' }}
-    >
+    <div className="mt-2 pt-3 border-t border-gray-200">
       {/* Clickable header that toggles comments visibility - HN style */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-medium hover:underline transition-colors mb-3"
-        style={{ color: 'var(--text-secondary)' }}
+        className="flex items-center gap-2 text-sm font-medium hover:underline transition-colors mb-3 text-gray-600"
       >
         {/* Simple arrow that rotates based on expanded state */}
         <span className={`transform transition-transform text-xs ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
@@ -108,7 +100,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
       
       {/* Comments content - only visible when expanded */}
       {isExpanded && (
-        <div style={{ backgroundColor: 'var(--comment-bg)' }} className="p-3 rounded-sm">
+        <div className="p-3 rounded-sm bg-gray-50">
           {/* Render existing comments if any exist */}
           {topLevelComments.length > 0 && (
             <div className="mb-4">
@@ -118,30 +110,19 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
           
           {/* New comment form with clean styling */}
           <div 
-            className="p-3 rounded-sm"
-            style={{ 
-              backgroundColor: 'var(--post-bg)',
-              border: '1px solid var(--border-light)'
-            }}
+            className="p-3 rounded-sm bg-white border border-gray-200"
           >
             <form onSubmit={handleCommentSubmit}>
               <textarea
                 value={newComment} // Controlled input - value comes from state
                 onChange={(e) => setNewComment(e.target.value)} // Update state on every keystroke
-                className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                style={{ 
-                  border: '1px solid var(--border-medium)'
-                }}
+                className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300"
                 rows={3}
                 placeholder="Add a comment..."
               />
               <button 
                 type="submit"
-                className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors"
-                style={{ 
-                  backgroundColor: 'var(--header-blue)',
-                  color: 'var(--header-text)'
-                }}
+                className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 text-white"
               >
                 Submit
               </button>
