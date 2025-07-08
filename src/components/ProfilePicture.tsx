@@ -52,8 +52,8 @@ export default function ProfilePicture({
   
   // Default grey icon fallback
   return (
-    <div className={`${baseClasses} bg-gray-300 flex items-center justify-center`}>
-      <User className="w-3/5 h-3/5 text-gray-600" />
+    <div className={`${baseClasses} bg-gray-300 dark:bg-gray-600 flex items-center justify-center`}>
+      <User className="w-3/5 h-3/5 text-gray-600 dark:text-gray-300" />
     </div>
   );
 }

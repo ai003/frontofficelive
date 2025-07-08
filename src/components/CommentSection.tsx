@@ -4,6 +4,7 @@ import ProfilePicture from './ProfilePicture';
 
 // Define props interface for CommentSection component
 // This component manages HN-style threaded comments with clean visual hierarchy
+// DARK THEME: Uses dark:text-gray-* classes for text colors, dark:bg-gray-* for backgrounds, and dark:border-gray-* for borders throughout
 interface CommentSectionProps {
   postId: string;
   comments: Comment[];
@@ -39,7 +40,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
           }}
         >
           {/* Comment metadata line */}
-          <div className="flex items-center gap-2 text-xs mb-1 text-gray-400">
+          <div className="flex items-center gap-2 text-xs mb-1 text-gray-400 dark:text-gray-500">
             <ProfilePicture user={comment.author} size="w-4 h-4" />
             <span className="font-medium">
               {comment.author.name}
@@ -49,7 +50,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
           </div>
           
           {/* Comment content with clean typography */}
-          <div className="text-sm leading-relaxed text-gray-900">
+          <div className="text-sm leading-relaxed text-gray-900 dark:text-gray-100">
             {comment.content}
           </div>
         </div>
@@ -59,7 +60,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
         
         {/* Add spacing between top-level comment threads */}
         {depth === 0 && replies.length === 0 && (
-          <div className="border-b border-gray-200" />
+          <div className="border-b border-gray-200 dark:border-gray-600" />
         )}
       </div>
     );
@@ -85,11 +86,11 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
   };
 
   return (
-    <div className="mt-2 pt-3 border-t border-gray-200">
+    <div className="mt-2 pt-3 border-t border-gray-200 dark:border-gray-600">
       {/* Clickable header that toggles comments visibility - HN style */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-medium hover:underline transition-colors mb-3 text-gray-600"
+        className="flex items-center gap-2 text-sm font-medium hover:underline transition-colors mb-3 text-gray-600 dark:text-gray-400"
       >
         {/* Simple arrow that rotates based on expanded state */}
         <span className={`transform transition-transform text-xs ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
@@ -100,7 +101,7 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
       
       {/* Comments content - only visible when expanded */}
       {isExpanded && (
-        <div className="p-3 rounded-sm bg-gray-50">
+        <div className="p-3 rounded-sm bg-gray-50 dark:bg-gray-700">
           {/* Render existing comments if any exist */}
           {topLevelComments.length > 0 && (
             <div className="mb-4">
@@ -110,19 +111,19 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
           
           {/* New comment form with clean styling */}
           <div 
-            className="p-3 rounded-sm bg-white border border-gray-200"
+            className="p-3 rounded-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
           >
             <form onSubmit={handleCommentSubmit}>
               <textarea
                 value={newComment} // Controlled input - value comes from state
                 onChange={(e) => setNewComment(e.target.value)} // Update state on every keystroke
-                className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300"
+                className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 rows={3}
                 placeholder="Add a comment..."
               />
               <button 
                 type="submit"
-                className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 text-white"
+                className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
               >
                 Submit
               </button>
