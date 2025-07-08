@@ -3,6 +3,8 @@ import ThemeToggle from './ThemeToggle';
 // Header component with Hacker News-inspired blue header styling
 // Displays the site logo and title in a clean, professional layout
 export default function Header() {
+  // DARK THEME: Header background color changes
+  // bg-blue-500 (standard blue) -> dark:bg-blue-700 (darker blue when dark mode active)
   return (
     <header className="w-full py-3 px-4 bg-blue-500 dark:bg-blue-700">
       {/* Container to constrain header content to max-width and center it */}

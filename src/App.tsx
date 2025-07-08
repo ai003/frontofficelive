@@ -55,13 +55,15 @@ function App() {
     saveComments(updatedComments); // Persist to localStorage
   };
 
+  // DARK THEME: Full-width background container
+  // bg-gray-100 (light) -> dark:bg-gray-900 (darkest background when dark mode active)
   return (
-    <>
+    <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
       {/* Blue header bar with logo and title */}
       <Header />
       
       {/* Main container with Hacker News-inspired styling */}
-      <div className="max-w-4xl mx-auto bg-gray-100 dark:bg-gray-900 min-h-screen px-4">
+      <div className="max-w-4xl mx-auto px-8">
         <div className="py-4">
           {/* Create new post form */}
           <CreatePost onAddPost={addPost} />
@@ -70,7 +72,7 @@ function App() {
           <PostList posts={posts} comments={comments} onAddComment={addComment} />
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
