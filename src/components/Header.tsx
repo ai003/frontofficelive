@@ -22,7 +22,7 @@ export default function Header() {
         
           {/* Site title with clean typography */}
           <h1 className="text-xl font-semibold text-white">
-            FrontOffice.live
+            Front Office
           </h1>
         </div>
         
