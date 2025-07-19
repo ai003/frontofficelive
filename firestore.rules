@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isValidPost(post) {
+      return post.keys().hasAll(['title', 'content', 'authorId', 'authorName', 'authorRole', 'createdAt', 'tags', 'commentCount']) &&
+             post.title is string &&
+             post.content is string &&
+             post.authorId is string &&
+             post.authorName is string &&
+             post.authorRole in ['admin', 'user'] &&
+             post.createdAt is timestamp &&
+             post.tags is list &&
+             post.commentCount is number;
+    }
+    
+    function isValidComment(comment) {
+      return comment.keys().hasAll(['postId', 'content', 'authorId', 'authorName', 'authorRole', 'createdAt', 'parentId', 'depth', 'path', 'threadRoot']) &&
+             comment.postId is string &&
+             comment.content is string &&
+             comment.authorId is string &&
+             comment.authorName is string &&
+             comment.authorRole in ['admin', 'user'] &&
+             comment.createdAt is timestamp &&
+             (comment.parentId is string || comment.parentId == null) &&
+             comment.depth is number &&
+             comment.path is string &&
+             comment.threadRoot is string;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Allow read access for all users
+      allow read: if true;
+      
+      // Allow write access only for own profile
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Posts collection rules
+    match /posts/{postId} {
+      // Public read access
+      allow read: if true;
+      
+      // Authenticated users can create posts
+      allow create: if isAuthenticated() && 
+                    isValidPost(request.resource.data) &&
+                    request.resource.data.authorId == request.auth.uid;
+      
+      // Author or admin can update posts
+      allow update: if isAuthenticated() && 
+                    isValidPost(request.resource.data) &&
+                    (resource.data.authorId == request.auth.uid || isAdmin());
+      
+      // Author or admin can delete posts
+      allow delete: if isAuthenticated() && 
+                    (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+    
+    // Comments collection rules
+    match /comments/{commentId} {
+      // Public read access
+      allow read: if true;
+      
+      // Authenticated users can create comments
+      allow create: if isAuthenticated() && 
+                    isValidComment(request.resource.data) &&
+                    request.resource.data.authorId == request.auth.uid;
+      
+      // Author or admin can update comments
+      allow update: if isAuthenticated() && 
+                    isValidComment(request.resource.data) &&
+                    (resource.data.authorId == request.auth.uid || isAdmin());
+      
+      // Author or admin can delete comments
+      allow delete: if isAuthenticated() && 
+                    (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+  }
+}
