@@ -3,57 +3,155 @@ import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import type { Post, Comment } from './types';
-import { loadPosts, savePosts, loadComments, saveComments } from './utils/localStorage';
-import { users } from './data/sampleData';
+import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
+
+// Helper functions to convert Firebase service types to component types
+const convertServicePostToPost = (servicePost: any): Post => ({
+  ...servicePost,
+  author: {
+    id: servicePost.authorId,
+    name: servicePost.authorName,
+    role: servicePost.authorRole
+  }
+});
+
+const convertServiceCommentToComment = (serviceComment: any): Comment => ({
+  ...serviceComment,
+  author: {
+    id: serviceComment.authorId,
+    name: serviceComment.authorName,
+    role: serviceComment.authorRole
+  }
+});
+// Default users for demo purposes
+const DEFAULT_ADMIN = { id: '1', name: 'CoachMike', role: 'admin' as const };
+const DEFAULT_USER = { id: '2', name: 'StatsGuru23', role: 'user' as const };
 
 function App() {
   // State management for posts and comments arrays
-  // These are loaded from localStorage and updated when users add content
+  // These are loaded from Firebase and updated in real-time
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load data from localStorage on component mount
-  // This combines any saved user data with the original dummy data
+  // Load initial data from Firebase and set up real-time listeners
   useEffect(() => {
-    setPosts(loadPosts());
-    setComments(loadComments());
+    let postsUnsubscribe: (() => void) | undefined;
+    let commentsUnsubscribe: (() => void) | undefined;
+
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Load initial data
+        const [initialPosts, initialComments] = await Promise.all([
+          loadPosts(),
+          loadComments()
+        ]);
+
+        setPosts(initialPosts.map(convertServicePostToPost));
+        setComments(initialComments.map(convertServiceCommentToComment));
+
+        // Set up real-time listeners
+        postsUnsubscribe = subscribeToPostsUpdates((updatedPosts) => {
+          setPosts(updatedPosts.map(convertServicePostToPost));
+        });
+
+        commentsUnsubscribe = subscribeToCommentsUpdates((updatedComments) => {
+          setComments(updatedComments.map(convertServiceCommentToComment));
+        });
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error initializing data:', err);
+        setError('Failed to load data from Firebase');
+        setLoading(false);
+      }
+    };
+
+    initializeData();
+
+    // Cleanup listeners on unmount
+    return () => {
+      if (postsUnsubscribe) postsUnsubscribe();
+      if (commentsUnsubscribe) commentsUnsubscribe();
+    };
   }, []);
 
   // Handler function to add new posts
-  // Creates a new post object and updates both state and localStorage
-  const addPost = (title: string, content: string, tags: string[]) => {
-    const newPost: Post = {
-      id: Date.now().toString(), // Simple unique ID using timestamp
-      title,
-      content,
-      author: users[0], // Default to first user (CoachMike - admin)
-      createdAt: new Date(),
-      tags
-    };
-
-    // Add new post to front of array (newest first)
-    const updatedPosts = [newPost, ...posts];
-    setPosts(updatedPosts); // Update React state for immediate UI update
-    savePosts(updatedPosts); // Persist to localStorage
+  // Creates a new post in Firebase - real-time listeners will update UI automatically
+  const addPost = async (title: string, content: string, tags: string[]) => {
+    try {
+      const defaultAuthor = DEFAULT_ADMIN; // Default to admin user (CoachMike)
+      
+      await addPostToFirebase(
+        title,
+        content,
+        defaultAuthor.id,
+        defaultAuthor.name,
+        defaultAuthor.role,
+        tags
+      );
+      
+      // No need to update local state - real-time listener will handle it
+    } catch (err) {
+      console.error('Error adding post:', err);
+      setError('Failed to add post');
+    }
   };
 
   // Handler function to add new comments
-  // Creates a new comment object and updates both state and localStorage
-  const addComment = (postId: string, content: string, parentId: string | null = null) => {
-    const newComment: Comment = {
-      id: Date.now().toString(), // Simple unique ID using timestamp
-      postId,
-      content,
-      author: users[1], // Default to second user (StatsGuru23)
-      createdAt: new Date(),
-      parentId // null for top-level comments, comment ID for replies
-    };
-
-    // Add new comment to front of array (newest first)
-    const updatedComments = [newComment, ...comments];
-    setComments(updatedComments); // Update React state for immediate UI update
-    saveComments(updatedComments); // Persist to localStorage
+  // Creates a new comment in Firebase - real-time listeners will update UI automatically
+  const addComment = async (postId: string, content: string, parentId: string | null = null) => {
+    try {
+      const defaultAuthor = DEFAULT_USER; // Default to regular user (StatsGuru23)
+      
+      await addCommentToFirebase(
+        postId,
+        content,
+        defaultAuthor.id,
+        defaultAuthor.name,
+        defaultAuthor.role,
+        parentId
+      );
+      
+      // No need to update local state - real-time listener will handle it
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      setError('Failed to add comment');
+    }
   };
+
+  // Show loading state while initializing Firebase connection
+  if (loading) {
+    return (
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading posts...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if Firebase connection fails
+  if (error) {
+    return (
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // DARK THEME: Full-width background container
   // bg-gray-100 (light) -> dark:bg-gray-900 (darkest background when dark mode active)

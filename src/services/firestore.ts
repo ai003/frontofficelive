@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { collection, getDocs, addDoc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc } from 'firebase/firestore';
 import type { FirestorePost, FirestoreComment } from '../types/firestore';
 
 // Service layer interfaces with Date objects (converted from Firestore Timestamps)
@@ -25,6 +25,7 @@ export async function loadPosts(): Promise<ServicePost[]> {
       const data = doc.data() as FirestorePost;
       return {
         ...data,
+        id: doc.id,  // Add the document ID
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
       };
     });
@@ -48,6 +49,7 @@ export async function loadComments(): Promise<ServiceComment[]> {
       const data = doc.data() as FirestoreComment;
       return {
         ...data,
+        id: doc.id,  // Add the document ID
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
       };
     });
@@ -67,7 +69,11 @@ export async function addPost(
   tags: string[] = []
 ): Promise<ServicePost> {
   try {
+    // First create document to get the ID
+    const docRef = doc(collection(db, 'posts'));
+    
     const newPost = {
+      id: docRef.id, // Include the ID in the document data
       title,
       content,
       authorId,
@@ -78,10 +84,10 @@ export async function addPost(
       commentCount: 0
     };
 
-    const docRef = await addDoc(collection(db, 'posts'), newPost);
+    // Set the document with the ID included
+    await setDoc(docRef, newPost);
     
     return {
-      id: docRef.id,
       ...newPost,
       createdAt: newPost.createdAt.toDate()
     };
@@ -102,49 +108,31 @@ export async function addComment(
   parentId: string | null = null
 ): Promise<ServiceComment> {
   try {
-    // Performance optimization opportunity: Currently loads all comments to calculate threading.
-    // For posts with 500+ comments, this could be optimized to query only the parent comment.
-    const existingComments = await loadComments();
+    // Simplified version: Since there's no reply UI yet, all comments are top-level
+    // Threading complexity will be added back when reply functionality is implemented
     
-    // Calculate threading based on parent comment
-    let depth = 0;
-    let threadRoot = '';
-    let parentPath = '';
+    // First create document reference to get the ID
+    const docRef = doc(collection(db, 'comments'));
     
-    if (parentId) {
-      const parent = existingComments.find(c => c.id === parentId);
-      if (parent) {
-        depth = parent.depth + 1;
-        threadRoot = parent.threadRoot;
-        parentPath = parent.path;
-      }
-    }
-
-    // Create comment with placeholder path - will be updated after document creation
     const newComment = {
+      id: docRef.id, // Include the ID in the document data
       postId,
       content,
       authorId,
       authorName,
       authorRole,
       createdAt: Timestamp.now(),
-      parentId,
-      depth,
-      path: '', // Will be set after document creation
-      threadRoot: '' // Will be set after document creation
+      parentId, // Currently always null - no reply UI
+      depth: 0, // All comments are top-level for now
+      path: docRef.id, // Simple path for top-level comments
+      threadRoot: docRef.id // Each comment is its own thread root
     };
 
-    const docRef = await addDoc(collection(db, 'comments'), newComment);
+    // Set the document with the ID included
+    await setDoc(docRef, newComment);
     
-    // Set final path and threadRoot using actual document ID (matches seed data logic)
-    const finalPath = parentId ? `${parentPath}/${docRef.id}` : docRef.id;
-    const finalThreadRoot = parentId ? threadRoot : docRef.id;
-
     return {
-      id: docRef.id,
       ...newComment,
-      path: finalPath,
-      threadRoot: finalThreadRoot,
       createdAt: newComment.createdAt.toDate()
     };
   } catch (error) {
@@ -169,7 +157,7 @@ export function subscribeToPostsUpdates(
         const data = doc.data() as FirestorePost;
         return {
           ...data,
-          id: doc.id,
+          id: doc.id,  // Document ID already included
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
         };
       });
@@ -197,7 +185,7 @@ export function subscribeToCommentsUpdates(
         const data = doc.data() as FirestoreComment;
         return {
           ...data,
-          id: doc.id,
+          id: doc.id,  // Document ID already included
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
         };
       });
