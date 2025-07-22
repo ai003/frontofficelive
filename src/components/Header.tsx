@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, ChevronDown } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import type { User as UserType } from '../App';
@@ -15,6 +16,7 @@ interface HeaderProps {
 // Displays the site logo and title in a clean, professional layout
 export default function Header({ selectedUser, showUserDropdown, setShowUserDropdown, onSelectUser }: HeaderProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -55,15 +57,23 @@ export default function Header({ selectedUser, showUserDropdown, setShowUserDrop
         </div>
         
         <div className="flex items-center gap-4">
+          {/* Login/Sign Up button */}
+          <button
+            onClick={() => navigate('/auth')}
+            className="px-4 py-2 border border-white/20 rounded hover:bg-white/10 transition-colors text-sm font-medium h-12"
+          >
+            Login / Sign Up
+          </button>
+          
           {/* User selection area */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-2 px-3 py-2 border border-white/20 rounded hover:bg-white/10 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 border border-white/20 rounded hover:bg-white/10 transition-colors h-12"
             >
               {/* User icon */}
-              <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4" />
+              <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                <User className="w-3 h-3" />
               </div>
               
               {/* Username */}

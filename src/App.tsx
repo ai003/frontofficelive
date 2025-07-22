@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import UserSelectionModal from './components/UserSelectionModal';
+import AuthPage from './components/AuthPage';
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
 
@@ -33,14 +35,16 @@ export const AVAILABLE_USERS = [
 
 export type User = typeof AVAILABLE_USERS[0];
 
-function App() {
-  // State management for posts and comments arrays
-  // These are loaded from Firebase and updated in real-time
+interface ForumContentProps {
+  selectedUser: User;
+  onSelectUser: (user: User) => void;
+}
+
+const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Load initial data from Firebase and set up real-time listeners
@@ -92,19 +96,12 @@ function App() {
   // Creates a new post in Firebase - real-time listeners will update UI automatically
   const addPost = async (title: string, content: string, tags: string[]) => {
     try {
-      if (!selectedUser) {
-        console.error('No user selected');
-        return;
-      }
-      
-      const defaultAuthor = selectedUser;
-      
       await addPostToFirebase(
         title,
         content,
-        defaultAuthor.id,
-        defaultAuthor.name,
-        defaultAuthor.role,
+        selectedUser.id,
+        selectedUser.name,
+        selectedUser.role,
         tags
       );
       
@@ -119,19 +116,12 @@ function App() {
   // Creates a new comment in Firebase - real-time listeners will update UI automatically
   const addComment = async (postId: string, content: string, parentId: string | null = null) => {
     try {
-      if (!selectedUser) {
-        console.error('No user selected');
-        return;
-      }
-      
-      const defaultAuthor = selectedUser;
-      
       await addCommentToFirebase(
         postId,
         content,
-        defaultAuthor.id,
-        defaultAuthor.name,
-        defaultAuthor.role,
+        selectedUser.id,
+        selectedUser.name,
+        selectedUser.role,
         parentId
       );
       
@@ -171,10 +161,7 @@ function App() {
     );
   }
 
-  // Show user selection modal if no user is selected
-  if (!selectedUser) {
-    return <UserSelectionModal onSelectUser={setSelectedUser} />;
-  }
+
 
   // DARK THEME: Full-width background container
   // bg-gray-100 (light) -> dark:bg-gray-900 (darkest background when dark mode active)
@@ -185,7 +172,7 @@ function App() {
         selectedUser={selectedUser}
         showUserDropdown={showUserDropdown}
         setShowUserDropdown={setShowUserDropdown}
-        onSelectUser={setSelectedUser}
+        onSelectUser={onSelectUser}
       />
       
       {/* Main container with Hacker News-inspired styling */}
@@ -207,7 +194,32 @@ function App() {
         </div>
       </div>
     </div>
-  )
+  );
+};
+
+function App() {
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Show user selection modal if no user is selected
+  if (!selectedUser) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/" element={<UserSelectionModal onSelectUser={setSelectedUser} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/" element={<ForumContent selectedUser={selectedUser} onSelectUser={setSelectedUser} />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App

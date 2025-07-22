@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/react-router-dom": "^5.3.3",
     "@types/uuid": "^10.0.0",
     "firebase": "^11.10.0",
     "lucide-react": "^0.525.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.7.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
