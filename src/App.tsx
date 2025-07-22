@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
+import UserSelectionModal from './components/UserSelectionModal';
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
 
@@ -23,9 +24,14 @@ const convertServiceCommentToComment = (serviceComment: any): Comment => ({
     role: serviceComment.authorRole
   }
 });
-// Default users for demo purposes
-const DEFAULT_ADMIN = { id: '1', name: 'CoachMike', role: 'admin' as const };
-const DEFAULT_USER = { id: '2', name: 'StatsGuru23', role: 'user' as const };
+// Available users for selection
+export const AVAILABLE_USERS = [
+  { id: '1', name: 'CoachMike', role: 'admin' as const, description: 'Can post and comment' },
+  { id: '2', name: 'StatsGuru23', role: 'user' as const, description: 'Can only comment' },
+  { id: '3', name: 'HoopsAnalyst', role: 'user' as const, description: 'Can only comment' }
+];
+
+export type User = typeof AVAILABLE_USERS[0];
 
 function App() {
   // State management for posts and comments arrays
@@ -34,6 +40,8 @@ function App() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Load initial data from Firebase and set up real-time listeners
   useEffect(() => {
@@ -84,7 +92,12 @@ function App() {
   // Creates a new post in Firebase - real-time listeners will update UI automatically
   const addPost = async (title: string, content: string, tags: string[]) => {
     try {
-      const defaultAuthor = DEFAULT_ADMIN; // Default to admin user (CoachMike)
+      if (!selectedUser) {
+        console.error('No user selected');
+        return;
+      }
+      
+      const defaultAuthor = selectedUser;
       
       await addPostToFirebase(
         title,
@@ -106,7 +119,12 @@ function App() {
   // Creates a new comment in Firebase - real-time listeners will update UI automatically
   const addComment = async (postId: string, content: string, parentId: string | null = null) => {
     try {
-      const defaultAuthor = DEFAULT_USER; // Default to regular user (StatsGuru23)
+      if (!selectedUser) {
+        console.error('No user selected');
+        return;
+      }
+      
+      const defaultAuthor = selectedUser;
       
       await addCommentToFirebase(
         postId,
@@ -153,18 +171,36 @@ function App() {
     );
   }
 
+  // Show user selection modal if no user is selected
+  if (!selectedUser) {
+    return <UserSelectionModal onSelectUser={setSelectedUser} />;
+  }
+
   // DARK THEME: Full-width background container
   // bg-gray-100 (light) -> dark:bg-gray-900 (darkest background when dark mode active)
   return (
     <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
       {/* Blue header bar with logo and title */}
-      <Header />
+      <Header 
+        selectedUser={selectedUser}
+        showUserDropdown={showUserDropdown}
+        setShowUserDropdown={setShowUserDropdown}
+        onSelectUser={setSelectedUser}
+      />
       
       {/* Main container with Hacker News-inspired styling */}
       <div className="max-w-4xl mx-auto px-8">
         <div className="py-4">
-          {/* Create new post form */}
-          <CreatePost onAddPost={addPost} />
+          {/* Create new post form - only show for admins */}
+          {selectedUser.role === 'admin' ? (
+            <CreatePost onAddPost={addPost} />
+          ) : (
+            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-yellow-800 dark:text-yellow-200">
+                Only admins can create posts
+              </p>
+            </div>
+          )}
           
           {/* List of existing posts with their comments */}
           <PostList posts={posts} comments={comments} onAddComment={addComment} />
