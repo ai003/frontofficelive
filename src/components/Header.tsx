@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, ChevronDown } from 'lucide-react';
-import ThemeToggle from './ThemeToggle';
 import type { User as UserType } from '../App';
 import { AVAILABLE_USERS } from '../App';
 
@@ -121,8 +120,6 @@ export default function Header({ selectedUser, showUserDropdown, setShowUserDrop
             )}
           </div>
           
-          {/* Theme toggle button */}
-          <ThemeToggle />
         </div>
       </div>
     </header>

@@ -4,9 +4,13 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
+  darkMode: 'media', // Automatically follow system preference (light/dark mode)
   theme: {
-    extend: {},
+    extend: {
+      // Add any custom theme extensions here if needed in the future
+    },
   },
-  plugins: [],
+  plugins: [
+    // Add any Tailwind plugins here if needed
+  ],
 }
