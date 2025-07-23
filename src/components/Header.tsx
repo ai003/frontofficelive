@@ -41,12 +41,18 @@ export default function Header({ selectedUser, showUserDropdown, setShowUserDrop
           {/* Logo container with fixed dimensions 
           have to edit to make betterr
           */}
-          <div className=" overflow-hidden rounded">
+          <div className="overflow-hidden rounded">
             <img 
               src="/frontOfficeLogo.png" 
               alt="FrontOffice.live Logo" 
               className="h-full w-full object-cover"
               style={{ maxHeight: '60px', maxWidth: '60px' }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.parentElement!.innerHTML = '<div class="text-white font-bold text-lg flex items-center justify-center" style="height: 60px; width: 60px;">FO</div>';
+              }}
+              loading="eager"
             />
           </div>
         

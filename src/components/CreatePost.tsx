@@ -80,7 +80,7 @@ export default function CreatePost({ onAddPost }: CreatePostProps) {
             value={content} // Controlled input - value comes from state
             onChange={(e) => setContent(e.target.value)} // Update state on every keystroke
             rows={4}
-            className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-100 border border-gray-300" // DARK THEME: Missing dark mode classes - needs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100
+            className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" // DARK THEME: Added missing dark mode classes and light mode text color
             placeholder="Share your basketball thoughts..."
             required // HTML5 validation - form won't submit if empty
           />
