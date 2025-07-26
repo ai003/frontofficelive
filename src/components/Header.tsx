@@ -53,7 +53,7 @@ export default function Header({ selectedUser, showUserDropdown, setShowUserDrop
         
           {/* Site title with clean typography */}
           <h1 className="text-xl font-semibold text-white">
-            Live
+            Front Office Live
           </h1>
         </div>
         
