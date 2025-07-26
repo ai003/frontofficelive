@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, ChevronDown } from 'lucide-react';
 import type { User as UserType } from '../App';
 import { AVAILABLE_USERS } from '../App';
+import frontOfficeLogo from '../assets/frontOfficeLogo.png';
 
 interface HeaderProps {
   selectedUser: UserType;
@@ -42,16 +43,11 @@ export default function Header({ selectedUser, showUserDropdown, setShowUserDrop
           */}
           <div className="overflow-hidden rounded">
             <img 
-              src="/frontOfficeLogo.png" 
+              src={frontOfficeLogo} 
               alt="FrontOffice.live Logo" 
               className="h-full w-full object-cover"
               style={{ maxHeight: '60px', maxWidth: '60px' }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.parentElement!.innerHTML = '<div class="text-white font-bold text-lg flex items-center justify-center" style="height: 60px; width: 60px;">FO</div>';
-              }}
-              loading="eager"
+              
             />
           </div>
         
