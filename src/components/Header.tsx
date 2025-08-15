@@ -1,30 +1,32 @@
-import { useEffect, useRef } from 'react';
-import { User, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { User, LogOut, ChevronDown } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../firebase/config';
 import frontOfficeLogo from '../assets/frontOfficeLogo.png';
 
 interface HeaderProps {
-  showUserDropdown: boolean;
-  setShowUserDropdown: (show: boolean) => void;
+  onLoginRequired: () => void;
 }
 
 // Header component with Hacker News-inspired blue header styling
-// Displays the site logo and title in a clean, professional layout
-export default function Header({ showUserDropdown, setShowUserDropdown }: HeaderProps) {
-  const dropdownRef = useRef<HTMLDivElement>(null);
+// Displays the site logo and title with real authenticated user information
+export default function Header({ onLoginRequired }: HeaderProps) {
+  const { user, isAuthenticated } = useAuth();
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowUserDropdown(false);
-      }
+  // Handle user logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setShowUserDropdown(false);
+      // Refresh the entire page to start fresh after logout
+      window.location.reload();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Could add error toast here in the future
     }
-
-    if (showUserDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showUserDropdown, setShowUserDropdown]);
+  };
   // DARK THEME: Header background color changes
   // bg-blue-500 (standard blue) -> dark:bg-blue-700 (darker blue when dark mode active)
   return (
@@ -52,35 +54,58 @@ export default function Header({ showUserDropdown, setShowUserDropdown }: Header
         </div>
         
         <div className="flex items-center gap-4">
-          
-          {/* User selection area */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-2 px-3 py-2 border border-white/20 rounded hover:bg-white/10 transition-colors h-12"
-            >
-              {/* User icon */}
-              <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
-                <User className="w-3 h-3" />
-              </div>
-              
-              {/* Username */}
-              <span className="font-medium">Demo User</span>
-              
-              {/* Dropdown arrow */}
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            
-            {/* User dropdown - temporarily disabled */}
-            {showUserDropdown && (
-              <div className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
-                <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
-                  User switching temporarily disabled
+          {isAuthenticated && user ? (
+            /* Authenticated user display with dropdown */
+            <div className="relative">
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="flex items-center gap-2 px-3 py-3 border border-white/20 rounded hover:bg-white/10 transition-colors"
+              >
+                {/* User icon */}
+                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4" />
                 </div>
-              </div>
-            )}
-          </div>
-          
+                
+                {/* Real user name and role indicator */}
+                <div className="flex flex-col items-start">
+                  <span className="font-medium text-sm">{user.name}</span>
+                  {/* <span className="text-xs text-white/70">
+                    {user.role === 'admin' ? '👑 Admin' : '🏀 Fan'}
+                  </span> */}
+                </div>
+                
+                {/* Dropdown arrow */}
+                <ChevronDown className={`w-4 h-4 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* User dropdown with logout */}
+              {showUserDropdown && (
+                <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
+                  <div className="p-2">
+                    <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 mt-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Non-authenticated user login button */
+            <button
+              onClick={onLoginRequired}
+              className="px-4 py-2 bg-white text-blue-500 font-medium rounded hover:bg-blue-50 transition-colors"
+            >
+              Login / Sign Up
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Comment } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import ProfilePicture from './ProfilePicture';
 
 // Define props interface for CommentSection component
@@ -10,9 +11,12 @@ interface CommentSectionProps {
   comments: Comment[];
   // Function passed down from parent to handle adding new comments
   onAddComment: (postId: string, content: string, parentId?: string | null) => void;
+  // Function to trigger authentication modal when login is required
+  onLoginRequired: () => void;
 }
 
-export default function CommentSection({ postId, comments, onAddComment }: CommentSectionProps) {
+export default function CommentSection({ postId, comments, onAddComment, onLoginRequired }: CommentSectionProps) {
+  const { isAuthenticated } = useAuth();
   // State to track whether comments section is expanded or collapsed
   // Start collapsed by default for cleaner initial view
   const [isExpanded, setIsExpanded] = useState(false);
@@ -109,25 +113,41 @@ export default function CommentSection({ postId, comments, onAddComment }: Comme
             </div>
           )}
           
-          {/* New comment form with clean styling */}
+          {/* Authentication-aware comment form */}
           <div 
             className="p-3 rounded-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
           >
-            <form onSubmit={handleCommentSubmit}>
-              <textarea
-                value={newComment} // Controlled input - value comes from state
-                onChange={(e) => setNewComment(e.target.value)} // Update state on every keystroke
-                className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                rows={3}
-                placeholder="Add a comment..."
-              />
-              <button 
-                type="submit"
-                className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
-              >
-                Submit
-              </button>
-            </form>
+            {isAuthenticated ? (
+              /* Comment form for authenticated users */
+              <form onSubmit={handleCommentSubmit}>
+                <textarea
+                  value={newComment} // Controlled input - value comes from state
+                  onChange={(e) => setNewComment(e.target.value)} // Update state on every keystroke
+                  className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  rows={3}
+                  placeholder="Add a comment..."
+                />
+                <button 
+                  type="submit"
+                  className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
+                >
+                  Submit
+                </button>
+              </form>
+            ) : (
+              /* Login prompt for non-authenticated users */
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Join the discussion! Sign in to share your thoughts.
+                </p>
+                <button
+                  onClick={onLoginRequired}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white transition-colors"
+                >
+                  Login to Comment
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

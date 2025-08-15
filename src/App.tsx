@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
-import AuthModal from './components/AuthModal'; // TEMPORARY: Added for testing auth modal
+import AuthModal from './components/AuthModal';
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
 
@@ -29,12 +29,18 @@ const convertServiceCommentToComment = (serviceComment: any): Comment => ({
 
 
 const ForumContent: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // TEMPORARY: State for testing auth modal
+  // AuthModal state for login/signup functionality
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Handler to trigger login modal when authentication is required
+  const handleLoginRequired = () => {
+    setIsAuthModalOpen(true);
+  };
 
   // Load initial data from Firebase and set up real-time listeners
   useEffect(() => {
@@ -98,13 +104,19 @@ const ForumContent: React.FC = () => {
   // Handler function to add new posts
   // Creates a new post in Firebase - real-time listeners will update UI automatically
   const addPost = async (title: string, content: string, tags: string[]) => {
+    // Check if user is authenticated before allowing post creation
+    // If not authenticated, silently return (UI will show login button instead)
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     try {
       await addPostToFirebase(
         title,
         content,
-        'temp-user-id',
-        'temp-user-name',
-        'user',
+        user.id,     // Real authenticated user ID
+        user.name,   // Real authenticated user name  
+        user.role as 'admin' | 'user',   // Real authenticated user role (cast for TypeScript)
         tags
       );
       
@@ -118,13 +130,19 @@ const ForumContent: React.FC = () => {
   // Handler function to add new comments
   // Creates a new comment in Firebase - real-time listeners will update UI automatically
   const addComment = async (postId: string, content: string, parentId: string | null = null) => {
+    // Check if user is authenticated before allowing comment creation
+    // If not authenticated, silently return (UI will show login button instead)
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     try {
       await addCommentToFirebase(
         postId,
         content,
-        'temp-user-id',
-        'temp-user-name',
-        'user',
+        user.id,     // Real authenticated user ID
+        user.name,   // Real authenticated user name
+        user.role as 'admin' | 'user',   // Real authenticated user role (cast for TypeScript)
         parentId
       );
       
@@ -141,7 +159,7 @@ const ForumContent: React.FC = () => {
       <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading posts...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading Front Office...</p>
         </div>
       </div>
     );
@@ -171,41 +189,39 @@ const ForumContent: React.FC = () => {
   return (
     <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
       {/* Blue header bar with logo and title */}
-      <Header 
-        showUserDropdown={showUserDropdown}
-        setShowUserDropdown={setShowUserDropdown}
-      />
-      
-      {/* TEMPORARY: Test Auth Modal Button - Remove after testing */}
-      <div className="max-w-4xl mx-auto px-8 pt-4">
-        <button 
-          onClick={() => setIsAuthModalOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
-        >
-          Test Auth Modal
-        </button>
-      </div>
+      <Header onLoginRequired={handleLoginRequired} />
       
       {/* Main container with Hacker News-inspired styling */}
       <div className="max-w-4xl mx-auto px-8">
         <div className="py-4">
-          {/* Create new post form - temporarily disabled during auth migration */}
-          {false ? (
+          {/* Conditional rendering based on authentication status */}
+          {isAuthenticated ? (
             <CreatePost onAddPost={addPost} />
           ) : (
-            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <p className="text-yellow-800 dark:text-yellow-200">
-                Post creation temporarily disabled during authentication migration
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-blue-800 dark:text-blue-200 mb-3">
+                Join the conversation! Sign up or log in to create posts and share your basketball insights.
               </p>
+              <button
+                onClick={handleLoginRequired}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Login/Sign Up to Create Post
+              </button>
             </div>
           )}
           
           {/* List of existing posts with their comments */}
-          <PostList posts={posts} comments={comments} onAddComment={addComment} />
+          <PostList 
+            posts={posts} 
+            comments={comments} 
+            onAddComment={addComment}
+            onLoginRequired={handleLoginRequired}
+          />
         </div>
       </div>
       
-      {/* TEMPORARY: Auth Modal for testing - Move to proper trigger location later */}
+      {/* AuthModal for login/signup functionality */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 

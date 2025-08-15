@@ -9,9 +9,11 @@ interface PostListProps {
   comments: Comment[];
   // Function passed down from App.tsx to handle adding new comments
   onAddComment: (postId: string, content: string, parentId?: string | null) => void;
+  // Function to trigger authentication modal when login is required
+  onLoginRequired: () => void;
 }
 
-export default function PostList({ posts, comments, onAddComment }: PostListProps) {
+export default function PostList({ posts, comments, onAddComment, onLoginRequired }: PostListProps) {
   return (
     <div className="space-y-2">
       {/* Map through each post and render it with its associated components */}
@@ -27,6 +29,8 @@ export default function PostList({ posts, comments, onAddComment }: PostListProp
             // Pass the comment handler function down to CommentSection
             // This allows comments to be added and saved to localStorage
             onAddComment={onAddComment}
+            // Pass login handler for authentication-aware commenting
+            onLoginRequired={onLoginRequired}
           />
         </div>
       ))}

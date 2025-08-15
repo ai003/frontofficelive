@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { X } from 'lucide-react';
@@ -18,6 +18,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Clear messages when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Clear messages when modal opens
+      setSuccessMessage('');
+      setErrors({});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -139,7 +148,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         {/* Tab Selector */}
         <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-1 flex mb-6">
           <button
-            onClick={() => setActiveTab('login')}
+            onClick={() => {
+              setActiveTab('login');
+              setSuccessMessage('');
+              setErrors({});
+            }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'login'
                 ? 'bg-blue-500 text-white'
@@ -149,7 +162,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             Login
           </button>
           <button
-            onClick={() => setActiveTab('signup')}
+            onClick={() => {
+              setActiveTab('signup');
+              setSuccessMessage('');
+              setErrors({});
+            }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'signup'
                 ? 'bg-blue-500 text-white'
@@ -264,7 +281,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
                 onClick={(e) => e.preventDefault()}
               >
-                Forgot password?
+                Forgot password? (Just demo)
               </a>
             </div>
           )}
