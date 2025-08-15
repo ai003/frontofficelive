@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { X } from 'lucide-react';
 import { auth, db } from '../firebase/config';
 
-const AuthPage: React.FC = () => {
-  const navigate = useNavigate();
+interface AuthModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,6 +18,8 @@ const AuthPage: React.FC = () => {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  if (!isOpen) return null;
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -45,11 +51,11 @@ const AuthPage: React.FC = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    if (activeTab === 'signup') {
-      setIsLoading(true);
-      setErrors({});
+    setIsLoading(true);
+    setErrors({});
 
-      try {
+    try {
+      if (activeTab === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
@@ -61,51 +67,83 @@ const AuthPage: React.FC = () => {
         });
 
         setSuccessMessage('Account created successfully! Welcome to the forum.');
-        setName('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
-
-      } catch (error: unknown) {
-        let errorMessage = 'Failed to create account. Please try again.';
-        
-        if (error && typeof error === 'object' && 'code' in error) {
-          const firebaseError = error as { code: string };
-          if (firebaseError.code === 'auth/email-already-in-use') {
-            errorMessage = 'An account with this email already exists.';
-          } else if (firebaseError.code === 'auth/weak-password') {
-            errorMessage = 'Password is too weak. Please choose a stronger password.';
-          } else if (firebaseError.code === 'auth/invalid-email') {
-            errorMessage = 'Please enter a valid email address.';
-          }
-        }
-        
-        setErrors({ submit: errorMessage });
-      } finally {
-        setIsLoading(false);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        setSuccessMessage('Login successful! Welcome back.');
       }
+
+      // Reset form
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      
+      // Close modal after successful auth
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+
+    } catch (error: unknown) {
+      let errorMessage = activeTab === 'login' 
+        ? 'Failed to login. Please check your credentials.' 
+        : 'Failed to create account. Please try again.';
+      
+      if (error && typeof error === 'object' && 'code' in error) {
+        const firebaseError = error as { code: string };
+        switch (firebaseError.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'An account with this email already exists.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password is too weak. Please choose a stronger password.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            errorMessage = 'Invalid email or password.';
+            break;
+          default:
+            break;
+        }
+      }
+      
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleBackToForum = () => {
-    navigate('/');
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-      <div className="bg-gray-200 rounded-2xl p-8 w-full max-w-md">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={handleOverlayClick}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md relative">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-1.5 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
         {/* Tab Selector */}
-        <div className="bg-gray-300 rounded-xl p-1 flex mb-6">
+        <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-1 flex mb-6">
           <button
             onClick={() => setActiveTab('login')}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'login'
                 ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
             }`}
           >
             Login
@@ -115,7 +153,7 @@ const AuthPage: React.FC = () => {
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'signup'
                 ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
             }`}
           >
             Sign Up
@@ -127,15 +165,15 @@ const AuthPage: React.FC = () => {
           {/* Name Field (only for signup) */}
           {activeTab === 'signup' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Full Name
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={`w-full px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
+                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                  errors.name ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="Enter your full name"
               />
@@ -147,15 +185,15 @@ const AuthPage: React.FC = () => {
 
           {/* Email Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 ${
-                errors.email ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                errors.email ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="Enter your email"
             />
@@ -166,15 +204,15 @@ const AuthPage: React.FC = () => {
 
           {/* Password Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 ${
-                errors.password ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                errors.password ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="Enter your password"
             />
@@ -186,15 +224,15 @@ const AuthPage: React.FC = () => {
           {/* Confirm Password Field (only for signup) */}
           {activeTab === 'signup' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Confirm Password
               </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 ${
-                  errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                  errors.confirmPassword ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="Confirm your password"
               />
@@ -206,15 +244,15 @@ const AuthPage: React.FC = () => {
 
           {/* Error Message */}
           {errors.submit && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-700 text-sm">{errors.submit}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-red-700 dark:text-red-400 text-sm">{errors.submit}</p>
             </div>
           )}
 
           {/* Success Message */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-green-700 text-sm">{successMessage}</p>
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+              <p className="text-green-700 dark:text-green-400 text-sm">{successMessage}</p>
             </div>
           )}
 
@@ -223,7 +261,7 @@ const AuthPage: React.FC = () => {
             <div className="text-right">
               <a
                 href="#"
-                className="text-blue-500 hover:text-blue-600 text-sm"
+                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
                 onClick={(e) => e.preventDefault()}
               >
                 Forgot password?
@@ -241,17 +279,10 @@ const AuthPage: React.FC = () => {
                 : 'bg-blue-500 hover:bg-blue-600'
             } text-white`}
           >
-            {isLoading ? 'Creating Account...' : (activeTab === 'login' ? 'Login' : 'Create Account')}
-          </button>
-        </div>
-
-        {/* Back to Forum Button */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleBackToForum}
-            className="text-gray-600 hover:text-gray-800 text-sm"
-          >
-            ← Back to Forum
+            {isLoading 
+              ? (activeTab === 'login' ? 'Signing in...' : 'Creating Account...') 
+              : (activeTab === 'login' ? 'Login' : 'Create Account')
+            }
           </button>
         </div>
       </div>
@@ -259,4 +290,4 @@ const AuthPage: React.FC = () => {
   );
 };
 
-export default AuthPage;
+export default AuthModal;

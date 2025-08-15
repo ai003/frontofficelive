@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
-import UserSelectionModal from './components/UserSelectionModal';
-import AuthPage from './components/AuthPage';
+import AuthModal from './components/AuthModal'; // TEMPORARY: Added for testing auth modal
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
 
@@ -26,29 +26,20 @@ const convertServiceCommentToComment = (serviceComment: any): Comment => ({
     role: serviceComment.authorRole
   }
 });
-// Available users for selection
-export const AVAILABLE_USERS = [
-  { id: '1', name: 'CoachMike', role: 'admin' as const, description: 'Can post and comment' },
-  { id: '2', name: 'StatsGuru23', role: 'user' as const, description: 'Can only comment' },
-  { id: '3', name: 'HoopsAnalyst', role: 'user' as const, description: 'Can only comment' }
-];
 
-export type User = typeof AVAILABLE_USERS[0];
 
-interface ForumContentProps {
-  selectedUser: User;
-  onSelectUser: (user: User) => void;
-}
-
-const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser }) => {
+const ForumContent: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // TEMPORARY: State for testing auth modal
 
   // Load initial data from Firebase and set up real-time listeners
   useEffect(() => {
+    // These variables hold cleanup functions returned by Firebase listeners
+    // They're used to stop listening when component unmounts (prevents memory leaks)
     let postsUnsubscribe: (() => void) | undefined;
     let commentsUnsubscribe: (() => void) | undefined;
 
@@ -57,20 +48,30 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
         setLoading(true);
         setError(null);
 
-        // Load initial data
+        // STEP 1: Load initial data from Firestore (one-time fetch)
+        // loadPosts() - from './services/firestore' - queries 'posts' collection, orders by createdAt desc
+        // loadComments() - from './services/firestore' - queries 'comments' collection, orders by createdAt asc
+        // Promise.all runs both queries in parallel for better performance
         const [initialPosts, initialComments] = await Promise.all([
-          loadPosts(),
-          loadComments()
+          loadPosts(),    // Returns ServicePost[] from Firestore
+          loadComments()  // Returns ServiceComment[] from Firestore
         ]);
 
+        // STEP 2: Convert data format and update React state
+        // convertServicePostToPost - converts ServicePost to Post (restructures author field)
+        // convertServiceCommentToComment - converts ServiceComment to Comment (restructures author field)
         setPosts(initialPosts.map(convertServicePostToPost));
         setComments(initialComments.map(convertServiceCommentToComment));
 
-        // Set up real-time listeners
+        // STEP 3: Set up real-time listeners for live updates
+        // subscribeToPostsUpdates() - from './services/firestore' - uses Firebase onSnapshot
+        // Returns cleanup function to stop listening, callback fires when posts change
         postsUnsubscribe = subscribeToPostsUpdates((updatedPosts) => {
           setPosts(updatedPosts.map(convertServicePostToPost));
         });
 
+        // subscribeToCommentsUpdates() - from './services/firestore' - uses Firebase onSnapshot  
+        // Returns cleanup function to stop listening, callback fires when comments change
         commentsUnsubscribe = subscribeToCommentsUpdates((updatedComments) => {
           setComments(updatedComments.map(convertServiceCommentToComment));
         });
@@ -85,10 +86,12 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
 
     initializeData();
 
-    // Cleanup listeners on unmount
+    // CLEANUP: Stop Firebase listeners when component unmounts
+    // Without this, listeners would continue running after component is destroyed
+    // This prevents memory leaks and unnecessary Firebase calls
     return () => {
-      if (postsUnsubscribe) postsUnsubscribe();
-      if (commentsUnsubscribe) commentsUnsubscribe();
+      if (postsUnsubscribe) postsUnsubscribe();   // Stop posts listener
+      if (commentsUnsubscribe) commentsUnsubscribe(); // Stop comments listener
     };
   }, []);
 
@@ -99,9 +102,9 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
       await addPostToFirebase(
         title,
         content,
-        selectedUser.id,
-        selectedUser.name,
-        selectedUser.role,
+        'temp-user-id',
+        'temp-user-name',
+        'user',
         tags
       );
       
@@ -119,9 +122,9 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
       await addCommentToFirebase(
         postId,
         content,
-        selectedUser.id,
-        selectedUser.name,
-        selectedUser.role,
+        'temp-user-id',
+        'temp-user-name',
+        'user',
         parentId
       );
       
@@ -169,22 +172,30 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
     <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
       {/* Blue header bar with logo and title */}
       <Header 
-        selectedUser={selectedUser}
         showUserDropdown={showUserDropdown}
         setShowUserDropdown={setShowUserDropdown}
-        onSelectUser={onSelectUser}
       />
+      
+      {/* TEMPORARY: Test Auth Modal Button - Remove after testing */}
+      <div className="max-w-4xl mx-auto px-8 pt-4">
+        <button 
+          onClick={() => setIsAuthModalOpen(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
+        >
+          Test Auth Modal
+        </button>
+      </div>
       
       {/* Main container with Hacker News-inspired styling */}
       <div className="max-w-4xl mx-auto px-8">
         <div className="py-4">
-          {/* Create new post form - only show for admins */}
-          {selectedUser.role === 'admin' ? (
+          {/* Create new post form - temporarily disabled during auth migration */}
+          {false ? (
             <CreatePost onAddPost={addPost} />
           ) : (
             <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
               <p className="text-yellow-800 dark:text-yellow-200">
-                Only admins can create posts
+                Post creation temporarily disabled during authentication migration
               </p>
             </div>
           )}
@@ -193,32 +204,25 @@ const ForumContent: React.FC<ForumContentProps> = ({ selectedUser, onSelectUser 
           <PostList posts={posts} comments={comments} onAddComment={addComment} />
         </div>
       </div>
+      
+      {/* TEMPORARY: Auth Modal for testing - Move to proper trigger location later */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
     </div>
   );
 };
 
 function App() {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-
-  // Show user selection modal if no user is selected
-  if (!selectedUser) {
-    return (
+  return (
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/" element={<UserSelectionModal onSelectUser={setSelectedUser} />} />
+          <Route path="/" element={<ForumContent />} />
         </Routes>
       </BrowserRouter>
-    );
-  }
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/" element={<ForumContent selectedUser={selectedUser} onSelectUser={setSelectedUser} />} />
-      </Routes>
-    </BrowserRouter>
+    </AuthProvider>
   );
 }
 
