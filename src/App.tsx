@@ -29,7 +29,7 @@ const convertServiceCommentToComment = (serviceComment: any): Comment => ({
 
 
 const ForumContent: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,8 +153,8 @@ const ForumContent: React.FC = () => {
     }
   };
 
-  // Show loading state while initializing Firebase connection
-  if (loading) {
+  // Show loading state while initializing Firebase connection or during auth changes
+  if (loading || authLoading) {
     return (
       <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center">
         <div className="text-center">

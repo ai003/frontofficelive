@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
@@ -16,6 +16,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,10 +71,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      // Ensure minimum loading duration for better UX while waiting for signOut
+      await Promise.all([
+        signOut(auth),
+        new Promise(resolve => setTimeout(resolve, 1200))
+      ]);
+      // onAuthStateChanged will handle setting user to null and isLoading to false
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
+    logout,
   };
 
   return (

@@ -178,13 +178,13 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
                 <textarea
                   value={newComment} // Controlled input - value comes from state
                   onChange={(e) => setNewComment(e.target.value)} // Update state on every keystroke
-                  className="w-full p-2 text-sm rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  className="w-full p-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   rows={3}
                   placeholder="Add a comment..."
                 />
                 <button 
                   type="submit"
-                  className="mt-2 px-3 py-1 text-sm rounded-sm font-medium transition-colors bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
+                  className="mt-2 px-3 py-1 text-sm rounded-lg font-medium transition-colors bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
                 >
                   Submit
                 </button>

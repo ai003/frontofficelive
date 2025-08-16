@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
-import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
-import { auth } from '../firebase/config';
 import frontOfficeLogo from '../assets/frontOfficeLogo.png';
 
 interface HeaderProps {
@@ -12,16 +10,15 @@ interface HeaderProps {
 // Header component with Hacker News-inspired blue header styling
 // Displays the site logo and title with real authenticated user information
 export default function Header({ onLoginRequired }: HeaderProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Handle user logout
   const handleLogout = async () => {
     try {
-      await signOut(auth);
       setShowUserDropdown(false);
-      // Refresh the entire page to start fresh after logout
-      window.location.reload();
+      await logout();
+      // AuthContext logout method will show loading spinner and handle state change
     } catch (error) {
       console.error('Error signing out:', error);
       // Could add error toast here in the future

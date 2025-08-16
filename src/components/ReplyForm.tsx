@@ -85,7 +85,7 @@ export default function ReplyForm({ parentComment, onSubmit, onCancel }: ReplyFo
             <button
               type="submit"
               disabled={!replyContent.trim() || isSubmitting}
-              className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded transition-colors disabled:cursor-not-allowed"
+              className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-md transition-colors disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Replying...' : 'Reply'}
             </button>
