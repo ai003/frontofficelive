@@ -14,7 +14,7 @@ export default function PostCard({ post }: PostCardProps) {
   // text colors are handled individually below
   return (
     // Clean white card with subtle border and shadow, similar to HN post styling
-    <div className="mb-3 p-4 rounded-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 shadow-sm">
+    <div className="mb-3 p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 shadow-sm">
       {/* Post title with clean typography */}
       {/* DARK THEME: Post title text color */}
       {/* text-gray-900 (dark text on light) -> dark:text-gray-100 (light text on dark) */}

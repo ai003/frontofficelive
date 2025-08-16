@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
 import type { FirestorePost, FirestoreComment } from '../types/firestore';
 
 // Service layer interfaces with Date objects (converted from Firestore Timestamps)
@@ -98,7 +98,7 @@ export async function addPost(
 }
 
 
-// Add new comment to Firestore
+// Add new comment to Firestore with Reddit-style threading support
 export async function addComment(
   postId: string,
   content: string,
@@ -108,24 +108,43 @@ export async function addComment(
   parentId: string | null = null
 ): Promise<ServiceComment> {
   try {
-    // Simplified version: Since there's no reply UI yet, all comments are top-level
-    // Threading complexity will be added back when reply functionality is implemented
-    
     // First create document reference to get the ID
     const docRef = doc(collection(db, 'comments'));
     
+    let depth = 0;
+    let threadRoot = docRef.id; // Default to self for top-level comments
+    
+    // If this is a reply, fetch parent comment to calculate depth and thread root
+    if (parentId) {
+      try {
+        const parentDoc = await getDoc(doc(db, 'comments', parentId));
+        if (parentDoc.exists()) {
+          const parentData = parentDoc.data();
+          depth = (parentData.depth || 0) + 1; // Parent depth + 1
+          threadRoot = parentData.threadRoot || parentId; // Use parent's thread root
+        } else {
+          // Parent doesn't exist, treat as top-level comment
+          console.warn('Parent comment not found, creating as top-level comment');
+          parentId = null;
+        }
+      } catch (error) {
+        console.error('Error fetching parent comment:', error);
+        // Fall back to top-level comment
+        parentId = null;
+      }
+    }
+    
     const newComment = {
-      id: docRef.id, // Include the ID in the document data
+      id: docRef.id,
       postId,
       content,
       authorId,
       authorName,
       authorRole,
       createdAt: Timestamp.now(),
-      parentId, // Currently always null - no reply UI
-      depth: 0, // All comments are top-level for now
-      path: docRef.id, // Simple path for top-level comments
-      threadRoot: docRef.id // Each comment is its own thread root
+      parentId, // null for top-level, string for replies
+      depth, // 0 for top-level, 1+ for replies
+      threadRoot // ID of the top-level comment in this thread
     };
 
     // Set the document with the ID included

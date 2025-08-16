@@ -29,8 +29,7 @@ export interface FirestoreComment {
   authorName: string;
   authorRole: 'admin' | 'user';
   createdAt: Timestamp;
-  parentId: string | null;
-  depth: number;
-  path: string;
-  threadRoot: string;
+  parentId: string | null;  // null = top-level, string = reply to comment
+  depth: number;            // 0 = top-level, 1+ = reply depth
+  threadRoot: string;       // ID of the top-level comment in this thread
 }

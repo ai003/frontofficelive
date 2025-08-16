@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Comment } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import ProfilePicture from './ProfilePicture';
+import ReplyForm from './ReplyForm';
 
 // Define props interface for CommentSection component
 // This component manages HN-style threaded comments with clean visual hierarchy
@@ -23,26 +24,52 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
   
   // State to track the content of the new comment being typed
   const [newComment, setNewComment] = useState('');
+  
+  // State to track which comment is currently being replied to
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   // Filter all comments to show only those belonging to this specific post
   const postComments = comments.filter(comment => comment.postId === postId);
   
-  // Recursive function to render comments and their nested replies
-  // Uses HN-style indentation with subtle borders for visual hierarchy
+  // Helper function to handle reply submission
+  const handleReplySubmit = async (parentId: string, content: string) => {
+    await onAddComment(postId, content, parentId);
+    setReplyingTo(null); // Close reply form after submission
+  };
+
+  // Recursive function to render comments with Reddit-style threading
   const renderComment = (comment: Comment, depth = 0) => {
     // Find all direct replies to this comment
     const replies = postComments.filter(c => c.parentId === comment.id);
     
+    // Calculate visual indentation (max depth of 4 for visual purposes)
+    // Reduced indentation on mobile for better space usage
+    const visualDepth = Math.min(depth, 4);
+    const indentationPx = visualDepth * 16; // Reduced from 20px for mobile friendliness
+    
+    // Determine if this is a deep reply (depth 5+) that needs context indicator
+    const isDeepReply = depth >= 5;
+    
+    // Find the parent comment for context indicator
+    const parentComment = depth > 0 ? postComments.find(c => c.id === comment.parentId) : null;
+    
     return (
-      <div key={comment.id} className={depth > 0 ? 'ml-4' : ''}>
-        {/* Individual comment with HN-style clean formatting */}
+      <div key={comment.id}>
         <div 
-          className="py-2 px-0"
+          className={`py-2 ${isDeepReply ? 'bg-gray-50 dark:bg-gray-800/50' : ''}`}
           style={{ 
-            borderLeft: depth > 0 ? '1px solid #e5e7eb' : 'none',
+            marginLeft: `${indentationPx}px`,
+            borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none',
             paddingLeft: depth > 0 ? '12px' : '0'
           }}
         >
+          {/* Context indicator for deep replies (depth 5+) */}
+          {isDeepReply && parentComment && (
+            <div className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+              ↳ Replying to <span className="font-medium">@{parentComment.author.name}</span>
+            </div>
+          )}
+          
           {/* Comment metadata line */}
           <div className="flex items-center gap-2 text-xs mb-1 text-gray-400 dark:text-gray-500">
             <ProfilePicture user={comment.author} size="w-4 h-4" />
@@ -51,21 +78,48 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
             </span>
             <span>•</span>
             <span>{comment.createdAt.toLocaleDateString()}</span>
+            {/* Show depth indicator for debugging (can be removed in production) */}
+            {/* {depth > 0 && (
+              <span className="text-xs opacity-50">Level: {depth}</span>
+            )} */}
           </div>
           
-          {/* Comment content with clean typography */}
-          <div className="text-sm leading-relaxed text-gray-900 dark:text-gray-100">
+          {/* Comment content */}
+          <div className="text-sm leading-relaxed text-gray-900 dark:text-gray-100 mb-2">
             {comment.content}
           </div>
+          
+          {/* Reply button */}
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <button
+                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
+              >
+                {replyingTo === comment.id ? 'Cancel' : 'Reply'}
+              </button>
+            ) : (
+              <button
+                onClick={onLoginRequired}
+                className="text-xs text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 font-medium transition-colors"
+              >
+                Login to Reply
+              </button>
+            )}
+          </div>
+          
+          {/* Inline reply form */}
+          {replyingTo === comment.id && (
+            <ReplyForm
+              parentComment={comment}
+              onSubmit={handleReplySubmit}
+              onCancel={() => setReplyingTo(null)}
+            />
+          )}
         </div>
         
-        {/* Recursively render all replies with increased depth for indentation */}
+        {/* Recursively render all replies */}
         {replies.map(reply => renderComment(reply, depth + 1))}
-        
-        {/* Add spacing between top-level comment threads */}
-        {depth === 0 && replies.length === 0 && (
-          <div className="border-b border-gray-200 dark:border-gray-600" />
-        )}
       </div>
     );
   };
@@ -104,8 +158,9 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
       </button>
       
       {/* Comments content - only visible when expanded */}
+      {/* connect is expanded to state of app with auth changes */}
       {isExpanded && (
-        <div className="p-3 rounded-sm bg-gray-50 dark:bg-gray-700">
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
           {/* Render existing comments if any exist */}
           {topLevelComments.length > 0 && (
             <div className="mb-4">
@@ -115,7 +170,7 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
           
           {/* Authentication-aware comment form */}
           <div 
-            className="p-3 rounded-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
+            className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
           >
             {isAuthenticated ? (
               /* Comment form for authenticated users */
