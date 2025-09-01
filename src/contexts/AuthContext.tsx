@@ -8,7 +8,9 @@ import { auth, db } from '../firebase/config';
 interface AuthUser {
   id: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
   role: string;
 }
 
@@ -17,6 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => Promise<void>;
+  setUser: (user: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,32 +36,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         try {
-          // Fetch user data from Firestore
+          // Fetch user data from Firestore with retry for new users
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
               id: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              name: userData.name || '',
+              email: userData.email || firebaseUser.email || '',
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              username: userData.username || '',
               role: userData.role || 'user'
             });
           } else {
-            // If no Firestore doc, create basic user data
+            // If no Firestore doc, create fallback user data
+            // This should rarely happen with proper registration flow
+            const displayName = firebaseUser.displayName || 'User';
+            const names = displayName.split(' ');
             setUser({
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
-              name: firebaseUser.displayName || 'User',
+              firstName: names[0] || 'User',
+              lastName: names.slice(1).join(' ') || '',
+              username: `user_${firebaseUser.uid.slice(0, 8)}`,
               role: 'user'
             });
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          const displayName = firebaseUser.displayName || 'User';
+          const names = displayName.split(' ');
           setUser({
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
-            name: firebaseUser.displayName || 'User',
+            firstName: names[0] || 'User',
+            lastName: names.slice(1).join(' ') || '',
+            username: `user_${firebaseUser.uid.slice(0, 8)}`,
             role: 'user'
           });
         }
@@ -87,11 +102,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const manualSetUser = (userData: AuthUser) => {
+    setUser(userData);
+    setIsLoading(false);
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
     logout,
+    setUser: manualSetUser,
   };
 
   return (

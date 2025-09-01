@@ -1,6 +1,85 @@
 import { db } from '../firebase/config';
-import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
-import type { FirestorePost, FirestoreComment } from '../types/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc, where } from 'firebase/firestore';
+import type { FirestorePost, FirestoreComment, FirestoreUser } from '../types/firestore';
+
+// Display name utilities for consistent name display throughout the app
+export function getDisplayName(user: { firstName: string; lastName: string }): string {
+  return `${user.firstName} ${user.lastName}`.trim();
+}
+
+export function getFullDisplayName(user: { firstName: string; lastName: string; username: string }): string {
+  const displayName = getDisplayName(user);
+  return `${displayName} (@${user.username})`;
+}
+
+// Username validation utilities
+export function validateUsername(username: string): { isValid: boolean; error?: string } {
+  if (!username) {
+    return { isValid: false, error: 'Username is required' };
+  }
+  
+  if (username.length < 3) {
+    return { isValid: false, error: 'Username must be at least 3 characters long' };
+  }
+  
+  if (username.length > 20) {
+    return { isValid: false, error: 'Username must be no more than 20 characters long' };
+  }
+  
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return { isValid: false, error: 'Username can only contain letters, numbers, and underscores' };
+  }
+  
+  return { isValid: true };
+}
+
+// Check if username already exists in Firebase
+export async function checkUsernameExists(username: string): Promise<boolean> {
+  try {
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('username', '==', username)
+    );
+    const snapshot = await getDocs(usersQuery);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking username availability:', error);
+    throw new Error('Failed to check username availability');
+  }
+}
+
+// Create new user with firstName, lastName, username
+export async function createUser(
+  uid: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+  username: string
+): Promise<void> {
+  // Validate username format
+  const validation = validateUsername(username);
+  if (!validation.isValid) {
+    throw new Error(validation.error);
+  }
+  
+  // Check username uniqueness
+  const usernameExists = await checkUsernameExists(username);
+  if (usernameExists) {
+    throw new Error('Username is already taken');
+  }
+  
+  // Create user document
+  const userData: Omit<FirestoreUser, 'id'> = {
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    username: username.toLowerCase().trim(),
+    email: email,
+    role: 'user',
+    createdAt: Timestamp.now()
+  };
+  
+  await setDoc(doc(db, 'users', uid), userData);
+}
 
 // Service layer interfaces with Date objects (converted from Firestore Timestamps)
 interface ServicePost extends Omit<FirestorePost, 'createdAt'> {

@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  name: string;
+  name: string;  // This will be the display name (firstName + lastName)
   avatar?: string;
   role: 'admin' | 'user';
 }

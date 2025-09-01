@@ -3,7 +3,10 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface FirestoreUser {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
   avatar?: string;
   role: 'admin' | 'user';
   createdAt: Timestamp;

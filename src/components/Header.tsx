@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getDisplayName } from '../services/firestore';
 import frontOfficeLogo from '../assets/frontOfficeLogo.png';
 
 interface HeaderProps {
@@ -65,10 +66,10 @@ export default function Header({ onLoginRequired }: HeaderProps) {
                 
                 {/* Real user name and role indicator */}
                 <div className="flex flex-col items-start">
-                  <span className="font-medium text-sm">{user.name}</span>
-                  {/* <span className="text-xs text-white/70">
-                    {user.role === 'admin' ? '👑 Admin' : '🏀 Fan'}
-                  </span> */}
+                  <span className="font-medium text-sm truncate max-w-32" title={getDisplayName(user)}>
+                    {getDisplayName(user)}
+                  </span>
+                  
                 </div>
                 
                 {/* Dropdown arrow */}
@@ -80,8 +81,12 @@ export default function Header({ onLoginRequired }: HeaderProps) {
                 <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
                   <div className="p-2">
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate" title={getDisplayName(user)}>
+                        {getDisplayName(user)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        @{user.username}
+                      </p>
                     </div>
                     <button
                       onClick={handleLogout}

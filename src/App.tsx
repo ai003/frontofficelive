@@ -6,7 +6,7 @@ import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import AuthModal from './components/AuthModal';
 import type { Post, Comment } from './types';
-import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates } from './services/firestore';
+import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates, getDisplayName } from './services/firestore';
 
 // Helper functions to convert Firebase service types to component types
 const convertServicePostToPost = (servicePost: any): Post => ({
@@ -115,7 +115,7 @@ const ForumContent: React.FC = () => {
         title,
         content,
         user.id,     // Real authenticated user ID
-        user.name,   // Real authenticated user name  
+        getDisplayName(user),   // Real authenticated user display name  
         user.role as 'admin' | 'user',   // Real authenticated user role (cast for TypeScript)
         tags
       );
@@ -141,7 +141,7 @@ const ForumContent: React.FC = () => {
         postId,
         content,
         user.id,     // Real authenticated user ID
-        user.name,   // Real authenticated user name
+        getDisplayName(user),   // Real authenticated user display name
         user.role as 'admin' | 'user',   // Real authenticated user role (cast for TypeScript)
         parentId
       );

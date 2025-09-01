@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { X } from 'lucide-react';
-import { auth, db } from '../firebase/config';
+import { auth } from '../firebase/config';
+import { createUser, checkUsernameExists, validateUsername } from '../services/firestore';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,14 +11,18 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+  const { setUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
 
   // Clear messages when modal opens/closes
   useEffect(() => {
@@ -30,11 +35,39 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const validateForm = () => {
+  const validateForm = async () => {
     const newErrors: {[key: string]: string} = {};
 
-    if (activeTab === 'signup' && !name.trim()) {
-      newErrors.name = 'Name is required';
+    if (activeTab === 'signup') {
+      if (!firstName.trim()) {
+        newErrors.firstName = 'First name is required';
+      }
+      
+      if (!lastName.trim()) {
+        newErrors.lastName = 'Last name is required';
+      }
+      
+      if (!username.trim()) {
+        newErrors.username = 'Username is required';
+      } else {
+        const usernameValidation = validateUsername(username);
+        if (!usernameValidation.isValid) {
+          newErrors.username = usernameValidation.error!;
+        } else {
+          // Check username availability
+          try {
+            setUsernameChecking(true);
+            const exists = await checkUsernameExists(username);
+            if (exists) {
+              newErrors.username = 'Username is already taken';
+            }
+          } catch {
+            newErrors.username = 'Failed to check username availability';
+          } finally {
+            setUsernameChecking(false);
+          }
+        }
+      }
     }
 
     if (!email.trim()) {
@@ -58,7 +91,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const isValid = await validateForm();
+    if (!isValid) return;
 
     setIsLoading(true);
     setErrors({});
@@ -68,11 +102,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        await setDoc(doc(db, 'users', user.uid), {
-          name: name.trim(),
+        await createUser(
+          user.uid,
+          email,
+          firstName,
+          lastName,
+          username
+        );
+
+        // Manually set user state to bypass onAuthStateChanged race condition
+        setUser({
+          id: user.uid,
           email: email,
-          role: 'user',
-          createdAt: new Date().toISOString()
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: username.toLowerCase().trim(),
+          role: 'user'
         });
 
         setSuccessMessage('Account created successfully! Welcome to the forum.');
@@ -82,7 +127,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       // Reset form
-      setName('');
+      setFirstName('');
+      setLastName('');
+      setUsername('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
@@ -117,6 +164,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           default:
             break;
         }
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        // Handle createUser errors
+        errorMessage = (error as Error).message;
       }
       
       setErrors({ submit: errorMessage });
@@ -152,6 +202,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               setActiveTab('login');
               setSuccessMessage('');
               setErrors({});
+              setEmail('');
+              setPassword('');
             }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'login'
@@ -166,6 +218,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               setActiveTab('signup');
               setSuccessMessage('');
               setErrors({});
+              setFirstName('');
+              setLastName('');
+              setUsername('');
+              setEmail('');
+              setPassword('');
+              setConfirmPassword('');
             }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'signup'
@@ -179,25 +237,69 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Form Fields */}
         <div className="space-y-4">
-          {/* Name Field (only for signup) */}
+          {/* First Name and Last Name Fields (only for signup) */}
           {activeTab === 'signup' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
-                  errors.name ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
-                }`}
-                placeholder="Enter your full name"
-              />
-              {errors.name && (
-                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-              )}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                      errors.firstName ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="First name"
+                  />
+                  {errors.firstName && (
+                    <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                      errors.lastName ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Last name"
+                  />
+                  {errors.lastName && (
+                    <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Username Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                    errors.username ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Choose a username"
+                  disabled={usernameChecking}
+                />
+                {usernameChecking && (
+                  <p className="text-blue-500 text-sm mt-1">Checking availability...</p>
+                )}
+                {errors.username && (
+                  <p className="text-red-500 text-sm mt-1">{errors.username}</p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Email Field */}
