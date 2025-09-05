@@ -6,10 +6,10 @@ import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import AuthModal from './components/AuthModal';
 import type { Post, Comment } from './types';
-import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates, getDisplayName } from './services/firestore';
+import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates, getDisplayName, type ServicePost, type ServiceComment } from './services/firestore';
 
 // Helper functions to convert Firebase service types to component types
-const convertServicePostToPost = (servicePost: any): Post => ({
+const convertServicePostToPost = (servicePost: ServicePost): Post => ({
   ...servicePost,
   author: {
     id: servicePost.authorId,
@@ -18,7 +18,7 @@ const convertServicePostToPost = (servicePost: any): Post => ({
   }
 });
 
-const convertServiceCommentToComment = (serviceComment: any): Comment => ({
+const convertServiceCommentToComment = (serviceComment: ServiceComment): Comment => ({
   ...serviceComment,
   author: {
     id: serviceComment.authorId,

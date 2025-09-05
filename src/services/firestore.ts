@@ -82,11 +82,11 @@ export async function createUser(
 }
 
 // Service layer interfaces with Date objects (converted from Firestore Timestamps)
-interface ServicePost extends Omit<FirestorePost, 'createdAt'> {
+export interface ServicePost extends Omit<FirestorePost, 'createdAt'> {
   createdAt: Date;
 }
 
-interface ServiceComment extends Omit<FirestoreComment, 'createdAt'> {
+export interface ServiceComment extends Omit<FirestoreComment, 'createdAt'> {
   createdAt: Date;
 }
 

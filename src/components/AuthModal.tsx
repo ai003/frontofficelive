@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { X } from 'lucide-react';
+import { X, Check, Eye, EyeOff } from 'lucide-react';
 import { auth } from '../firebase/config';
 import { createUser, checkUsernameExists, validateUsername } from '../services/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +23,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(false);
+  const [usernameCheckTimeout, setUsernameCheckTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Clear messages when modal opens/closes
   useEffect(() => {
@@ -30,8 +33,79 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       // Clear messages when modal opens
       setSuccessMessage('');
       setErrors({});
+      setUsernameAvailable(false);
+      setUsernameChecking(false);
     }
   }, [isOpen]);
+
+  // Live username checking with debounce
+  const handleUsernameChange = async (value: string) => {
+    const lowerValue = value.toLowerCase();
+    setUsername(lowerValue);
+    
+    // Clear previous states
+    setUsernameAvailable(false);
+    setErrors(prev => ({ ...prev, username: '' }));
+    
+    // Clear previous timeout
+    if (usernameCheckTimeout) {
+      clearTimeout(usernameCheckTimeout);
+    }
+    
+    // Don't check if empty or invalid format
+    if (!lowerValue.trim()) {
+      setUsernameChecking(false);
+      return;
+    }
+    
+    const validation = validateUsername(lowerValue);
+    if (!validation.isValid) {
+      setErrors(prev => ({ ...prev, username: validation.error! }));
+      setUsernameChecking(false);
+      return;
+    }
+    
+    // Set new timeout to check after 500ms of no typing
+    const newTimeout = setTimeout(async () => {
+      setUsernameChecking(true);
+      try {
+        const exists = await checkUsernameExists(lowerValue);
+        if (exists) {
+          setErrors(prev => ({ ...prev, username: 'Username is already taken' }));
+          setUsernameAvailable(false);
+        } else {
+          setErrors(prev => ({ ...prev, username: '' }));
+          setUsernameAvailable(true);
+        }
+      } catch {
+        setErrors(prev => ({ ...prev, username: 'Failed to check username availability' }));
+        setUsernameAvailable(false);
+      } finally {
+        setUsernameChecking(false);
+      }
+    }, 500);
+    
+    setUsernameCheckTimeout(newTimeout);
+  };
+
+  // Email validation function
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Handle email change with validation
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    
+    // Clear previous email errors
+    setErrors(prev => ({ ...prev, email: '' }));
+    
+    // Validate email format if not empty
+    if (value.trim() && !validateEmail(value)) {
+      setErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -49,31 +123,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       
       if (!username.trim()) {
         newErrors.username = 'Username is required';
-      } else {
-        const usernameValidation = validateUsername(username);
-        if (!usernameValidation.isValid) {
-          newErrors.username = usernameValidation.error!;
-        } else {
-          // Check username availability
-          try {
-            setUsernameChecking(true);
-            const exists = await checkUsernameExists(username);
-            if (exists) {
-              newErrors.username = 'Username is already taken';
-            }
-          } catch {
-            newErrors.username = 'Failed to check username availability';
-          } finally {
-            setUsernameChecking(false);
-          }
-        }
+      } else if (errors.username) {
+        // If there's already an error from live checking, keep it
+        newErrors.username = errors.username;
       }
     }
 
     if (!email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
+    } else if (errors.email) {
+      // If there's already an error from real-time validation, keep it
+      newErrors.email = errors.email;
     }
 
     if (!password) {
@@ -133,6 +193,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      setUsernameAvailable(false);
+      setUsernameChecking(false);
+      setShowPassword(false);
+      if (usernameCheckTimeout) {
+        clearTimeout(usernameCheckTimeout);
+        setUsernameCheckTimeout(null);
+      }
       
       // Close modal after successful auth
       setTimeout(() => {
@@ -204,6 +271,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               setErrors({});
               setEmail('');
               setPassword('');
+              setShowPassword(false);
             }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'login'
@@ -224,6 +292,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               setEmail('');
               setPassword('');
               setConfirmPassword('');
+              setUsernameAvailable(false);
+              setUsernameChecking(false);
+              setShowPassword(false);
+              if (usernameCheckTimeout) {
+                clearTimeout(usernameCheckTimeout);
+                setUsernameCheckTimeout(null);
+              }
             }}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'signup'
@@ -236,10 +311,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Form Fields */}
-        <div className="space-y-4">
-          {/* First Name and Last Name Fields (only for signup) */}
+        <div className="space-y-6">
+          {/* Personal Information Section (only for signup) */}
           {activeTab === 'signup' && (
-            <>
+            <div className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -285,81 +360,114 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
                   className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
-                    errors.username ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                    errors.username ? 'border-red-300' : usernameAvailable ? 'border-green-300' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="Choose a username"
-                  disabled={usernameChecking}
                 />
                 {usernameChecking && (
                   <p className="text-blue-500 text-sm mt-1">Checking availability...</p>
+                )}
+                {usernameAvailable && !usernameChecking && !errors.username && (
+                  <div className="flex items-center mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <Check className="w-4 h-4 text-green-600 dark:text-green-400 mr-2" />
+                    <p className="text-green-700 dark:text-green-400 text-sm font-medium">Username available</p>
+                  </div>
                 )}
                 {errors.username && (
                   <p className="text-red-500 text-sm mt-1">{errors.username}</p>
                 )}
               </div>
-            </>
-          )}
-
-          {/* Email Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
-                errors.email ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
-              }`}
-              placeholder="Enter your email"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-            )}
-          </div>
-
-          {/* Password Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
-                errors.password ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
-              }`}
-              placeholder="Enter your password"
-            />
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-            )}
-          </div>
-
-          {/* Confirm Password Field (only for signup) */}
-          {activeTab === 'signup' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
-                  errors.confirmPassword ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
-                }`}
-                placeholder="Confirm your password"
-              />
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
-              )}
             </div>
           )}
+
+          {/* Authentication Section */}
+          <div className="space-y-5">
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => handleEmailChange(e.target.value)}
+                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                  errors.email ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                }`}
+                placeholder="Enter your email"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full px-3 py-2 pr-10 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                    errors.password ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
+              {/* Forgot Password Link (only for login) - moved inside password field area */}
+              {activeTab === 'login' && (
+                <div className="text-right mt-2">
+                  <a
+                    href="#"
+                    className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    Forgot password? (Just demo)
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password Field (only for signup) */}
+            {activeTab === 'signup' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 dark:text-white ${
+                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Confirm your password"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Error Message */}
           {errors.submit && (
@@ -375,21 +483,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Forgot Password Link (only for login) */}
-          {activeTab === 'login' && (
-            <div className="text-right">
-              <a
-                href="#"
-                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
-                onClick={(e) => e.preventDefault()}
-              >
-                Forgot password? (Just demo)
-              </a>
-            </div>
-          )}
 
           {/* Submit Button */}
-          <button
+          <div className="pt-2">
+            <button
             onClick={handleSubmit}
             disabled={isLoading}
             className={`w-full font-medium py-2 px-4 rounded-lg transition-colors ${
@@ -403,6 +500,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               : (activeTab === 'login' ? 'Login' : 'Create Account')
             }
           </button>
+          </div>
         </div>
       </div>
     </div>
