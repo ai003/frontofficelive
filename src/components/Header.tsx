@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { User, LogOut, ChevronDown } from 'lucide-react';
+import { User, LogOut, ChevronDown, Home } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getDisplayName } from '../services/firestore';
+import { useNavigate } from 'react-router-dom';
 import frontOfficeLogo from '../assets/frontOfficeLogo.png';
 
 interface HeaderProps {
@@ -13,6 +14,7 @@ interface HeaderProps {
 export default function Header({ onLoginRequired }: HeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const navigate = useNavigate();
 
   // Handle user logout
   const handleLogout = async () => {
@@ -30,28 +32,37 @@ export default function Header({ onLoginRequired }: HeaderProps) {
   return (
     <header className="w-full py-3 px-4 bg-blue-500 dark:bg-blue-700">
       {/* Container to constrain header content to max-width and center it */}
-      <div className="flex items-center justify-between max-w-4xl mx-auto text-white">
+      <div className="flex items-center max-w-7xl mx-auto text-white">
         <div className="flex items-center gap-1">
-          {/* Logo container with fixed dimensions 
+          {/* Logo container with fixed dimensions
           have to edit to make betterr
           */}
           <div className="overflow-hidden rounded">
-            <img 
-              src={frontOfficeLogo} 
-              alt="FrontOffice.live Logo" 
+            <img
+              src={frontOfficeLogo}
+              alt="FrontOffice.live Logo"
               className="h-full w-full object-cover"
               style={{ maxHeight: '60px', maxWidth: '60px' }}
-              
+
             />
           </div>
-        
+
           {/* Site title with clean typography */}
           <h1 className="text-xl font-semibold text-white">
             Front Office Live
           </h1>
         </div>
-        
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-4 ml-auto">
+          {/* Home button - Always visible, positioned left of user controls */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center justify-center w-10 h-10 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            title="Go to Home Feed"
+          >
+            <Home className="w-5 h-5" />
+          </button>
+
           {isAuthenticated && user ? (
             /* Authenticated user display with dropdown */
             <div className="relative">
@@ -88,6 +99,17 @@ export default function Header({ onLoginRequired }: HeaderProps) {
                         @{user.username}
                       </p>
                     </div>
+                    {/* My Profile button - Added for user profile system */}
+                    {/* Uses oval shape (rounded-full) and opposite theme colors as requested */}
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        navigate(`/profile/${user.username}`);
+                      }}
+                      className="w-full px-3 py-2 mt-2 text-sm font-medium rounded-full transition-colors bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                    >
+                      My Profile
+                    </button>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 mt-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"

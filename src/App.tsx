@@ -5,6 +5,7 @@ import Header from './components/Header';
 import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import AuthModal from './components/AuthModal';
+import UserProfile from './components/UserProfile';
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates, getDisplayName, type ServicePost, type ServiceComment } from './services/firestore';
 
@@ -236,6 +237,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<ForumContent />} />
+          <Route path="/profile/:username" element={<UserProfile />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

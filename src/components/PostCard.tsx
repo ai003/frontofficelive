@@ -1,5 +1,6 @@
 import type { Post } from '../types';
 import ProfilePicture from './ProfilePicture';
+import ClickableUsername from './ClickableUsername'; // Added for user profile navigation
 
 // Define props interface for PostCard component
 // This component displays the main content of a forum post in Hacker News style
@@ -27,9 +28,12 @@ export default function PostCard({ post }: PostCardProps) {
       {/* text-gray-600 (medium gray) -> dark:text-gray-400 (lighter gray in dark mode) */}
       <div className="flex items-center gap-2 text-sm mb-3 text-gray-600 dark:text-gray-400">
         <ProfilePicture user={post.author} size="w-6 h-6" />
-        <span className="font-medium">
-          {post.author.name}
-        </span>
+        {/* Replaced static author name with ClickableUsername for profile navigation */}
+        <ClickableUsername
+          userId={post.author.id}
+          displayName={post.author.name}
+          className="font-medium"
+        />
         <span>•</span>
         <span>{post.createdAt.toLocaleDateString()}</span>
       </div>

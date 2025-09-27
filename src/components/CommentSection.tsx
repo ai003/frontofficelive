@@ -3,6 +3,7 @@ import type { Comment } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import ProfilePicture from './ProfilePicture';
 import ReplyForm from './ReplyForm';
+import ClickableUsername from './ClickableUsername'; // Added for user profile navigation
 
 // Define props interface for CommentSection component
 // This component manages HN-style threaded comments with clean visual hierarchy
@@ -66,16 +67,24 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
           {/* Context indicator for deep replies (depth 5+) */}
           {isDeepReply && parentComment && (
             <div className="mb-1 text-xs text-gray-500 dark:text-gray-400">
-              ↳ Replying to <span className="font-medium">@{parentComment.author.name}</span>
+              {/* Made "Replying to" username clickable for profile navigation */}
+              ↳ Replying to <ClickableUsername
+                userId={parentComment.author.id}
+                displayName={`@${parentComment.author.name}`}
+                className="font-medium"
+              />
             </div>
           )}
           
           {/* Comment metadata line */}
           <div className="flex items-center gap-2 text-xs mb-1 text-gray-400 dark:text-gray-500">
             <ProfilePicture user={comment.author} size="w-4 h-4" />
-            <span className="font-medium">
-              {comment.author.name}
-            </span>
+            {/* Replaced static author name with ClickableUsername for profile navigation */}
+            <ClickableUsername
+              userId={comment.author.id}
+              displayName={comment.author.name}
+              className="font-medium"
+            />
             <span>•</span>
             <span>{comment.createdAt.toLocaleDateString()}</span>
             {/* Show depth indicator for debugging (can be removed in production) */}

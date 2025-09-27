@@ -2,18 +2,17 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface FirestoreUser {
-  id: string;
   firstName: string;
   lastName: string;
   username: string;
   email: string;
   avatar?: string;
+  bio?: string;
   role: 'admin' | 'user';
   createdAt: Timestamp;
 }
 
 export interface FirestorePost {
-  id: string;
   title: string;
   content: string;
   authorId: string;
@@ -25,7 +24,6 @@ export interface FirestorePost {
 }
 
 export interface FirestoreComment {
-  id: string;
   postId: string;
   content: string;
   authorId: string;

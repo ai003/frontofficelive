@@ -33,6 +33,31 @@ export function validateUsername(username: string): { isValid: boolean; error?: 
   return { isValid: true };
 }
 
+/**
+ * Get username by user ID for profile navigation
+ *
+ * Added for user profile system to enable clickable usernames throughout the forum.
+ * Uses existing authorId from posts/comments to fetch username for profile links.
+ *
+ * @param userId - Firebase user document ID (same as authorId in posts/comments)
+ * @returns username string or null if not found/error
+ *
+ * Usage: ClickableUsername component uses this to convert user IDs to profile URLs
+ */
+export async function getUsernameById(userId: string): Promise<string | null> {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data() as FirestoreUser;
+      return userData.username;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching username:', error);
+    return null;
+  }
+}
+
 // Check if username already exists in Firebase
 export async function checkUsernameExists(username: string): Promise<boolean> {
   try {
@@ -83,10 +108,12 @@ export async function createUser(
 
 // Service layer interfaces with Date objects (converted from Firestore Timestamps)
 export interface ServicePost extends Omit<FirestorePost, 'createdAt'> {
+  id: string;
   createdAt: Date;
 }
 
 export interface ServiceComment extends Omit<FirestoreComment, 'createdAt'> {
+  id: string;
   createdAt: Date;
 }
 
