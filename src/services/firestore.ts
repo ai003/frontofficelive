@@ -204,58 +204,35 @@ export async function addPost(
 }
 
 
-// Add new comment to Firestore with Reddit-style threading support
+// Add new comment to Firestore with Instagram-style flat threading
 export async function addComment(
   postId: string,
   content: string,
   authorId: string,
   authorName: string,
+  authorUsername: string,
   authorRole: 'admin' | 'user',
   parentId: string | null = null
 ): Promise<ServiceComment> {
   try {
-    // First create document reference to get the ID
+    // Create document reference to get the ID
     const docRef = doc(collection(db, 'comments'));
-    
-    let depth = 0;
-    let threadRoot = docRef.id; // Default to self for top-level comments
-    
-    // If this is a reply, fetch parent comment to calculate depth and thread root
-    if (parentId) {
-      try {
-        const parentDoc = await getDoc(doc(db, 'comments', parentId));
-        if (parentDoc.exists()) {
-          const parentData = parentDoc.data();
-          depth = (parentData.depth || 0) + 1; // Parent depth + 1
-          threadRoot = parentData.threadRoot || parentId; // Use parent's thread root
-        } else {
-          // Parent doesn't exist, treat as top-level comment
-          console.warn('Parent comment not found, creating as top-level comment');
-          parentId = null;
-        }
-      } catch (error) {
-        console.error('Error fetching parent comment:', error);
-        // Fall back to top-level comment
-        parentId = null;
-      }
-    }
-    
+
     const newComment = {
       id: docRef.id,
       postId,
       content,
       authorId,
       authorName,
+      authorUsername,
       authorRole,
       createdAt: Timestamp.now(),
-      parentId, // null for top-level, string for replies
-      depth, // 0 for top-level, 1+ for replies
-      threadRoot // ID of the top-level comment in this thread
+      parentId // null for top-level, string for replies
     };
 
     // Set the document with the ID included
     await setDoc(docRef, newComment);
-    
+
     return {
       ...newComment,
       createdAt: newComment.createdAt.toDate()

@@ -24,6 +24,7 @@ const convertServiceCommentToComment = (serviceComment: ServiceComment): Comment
   author: {
     id: serviceComment.authorId,
     name: serviceComment.authorName,
+    username: serviceComment.authorUsername,
     role: serviceComment.authorRole
   }
 });
@@ -143,10 +144,11 @@ const ForumContent: React.FC = () => {
         content,
         user.id,     // Real authenticated user ID
         getDisplayName(user),   // Real authenticated user display name
+        user.username,   // Username for @mentions
         user.role as 'admin' | 'user',   // Real authenticated user role (cast for TypeScript)
         parentId
       );
-      
+
       // No need to update local state - real-time listener will handle it
     } catch (err) {
       console.error('Error adding comment:', err);

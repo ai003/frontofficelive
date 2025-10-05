@@ -8,14 +8,17 @@ interface ReplyFormProps {
 }
 
 export default function ReplyForm({ parentComment, onSubmit, onCancel }: ReplyFormProps) {
-  const [replyContent, setReplyContent] = useState('');
+  // Initialize with @username and a space
+  const [replyContent, setReplyContent] = useState(`@${parentComment.author.name} `);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-focus when component mounts
+  // Auto-focus when component mounts and position cursor at the end
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.focus();
+      // Position cursor at the end after @username
+      textareaRef.current.setSelectionRange(replyContent.length, replyContent.length);
     }
   }, []);
 
