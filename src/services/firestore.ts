@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { FirestorePost, FirestoreComment, FirestoreUser } from '../types/firestore';
 
 // Display name utilities for consistent name display throughout the app
@@ -297,4 +297,84 @@ export function subscribeToCommentsUpdates(
       console.error('Error in comments subscription:', error);
     }
   );
+}
+
+/**
+ * Recursively finds all descendant comments (replies at any depth)
+ *
+ * Exported for reuse in UI (counting replies) and services (cascade delete)
+ * Single source of truth for descendant calculation logic
+ *
+ * @param commentId - ID of parent comment
+ * @param allComments - Array of all ServiceComment objects for the post
+ * @returns Array of all descendant comments (flattened)
+ */
+export function getAllCommentDescendants(commentId: string, allComments: ServiceComment[]): ServiceComment[] {
+  const directReplies = allComments.filter(c => c.parentId === commentId);
+  const allDescendants: ServiceComment[] = [...directReplies];
+
+  directReplies.forEach(reply => {
+    const nestedReplies = getAllCommentDescendants(reply.id, allComments);
+    allDescendants.push(...nestedReplies);
+  });
+
+  return allDescendants;
+}
+
+/**
+ * Deletes a comment and all its descendants (cascade delete)
+ *
+ * Implementation: Option A (Cascade Delete)
+ * - Deletes parent comment + all child replies recursively
+ * - Updates post's commentCount to reflect total deletions
+ * - Real-time listeners will update UI automatically
+ *
+ * Future: Can be extended to support soft delete (Option B/C) via optional flag
+ *
+ * @param commentId - ID of comment to delete
+ * @param postId - ID of parent post (to update commentCount)
+ * @returns Promise<number> - Total number of comments deleted (parent + descendants)
+ */
+export async function deleteComment(
+  commentId: string,
+  postId: string
+): Promise<number> {
+  try {
+    // Step 1: Fetch all comments for this post to find descendants
+    const commentsQuery = query(
+      collection(db, 'comments'),
+      where('postId', '==', postId)
+    );
+    const snapshot = await getDocs(commentsQuery);
+    const allComments: ServiceComment[] = snapshot.docs.map(doc => {
+      const data = doc.data() as FirestoreComment;
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+      };
+    });
+
+    // Step 2: Get all descendants using recursive helper
+    const descendants = getAllCommentDescendants(commentId, allComments);
+
+    // Step 3: Delete all descendants first (children before parent)
+    await Promise.all(
+      descendants.map(d => deleteDoc(doc(db, 'comments', d.id)))
+    );
+
+    // Step 4: Delete the parent comment
+    await deleteDoc(doc(db, 'comments', commentId));
+
+    // Step 5: Update post's commentCount (decrement by total deleted)
+    const totalDeleted = descendants.length + 1;
+    await updateDoc(doc(db, 'posts', postId), {
+      commentCount: increment(-totalDeleted)
+    });
+
+    return totalDeleted;
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    throw error;
+  }
 }
