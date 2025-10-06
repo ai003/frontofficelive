@@ -190,19 +190,31 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
    * - Shows comment content with clickable @username mentions
    * - "Reply" button on ALL comments (top-level and replies)
    * - "View X replies" button ONLY on top-level comments that have replies
-   * - When expanded, shows all direct replies at the same indentation level
+   * - When expanded, shows ALL descendants at the same indentation level (flat)
    *
    * @param comment - The comment to render
    * @param isReply - Whether this comment is a reply (affects visual styling and button visibility)
+   * @param flatMode - When true, prevents recursive nesting (used for descendants)
    */
-  const renderComment = (comment: Comment, isReply: boolean = false) => {
-    // Find all comments that are direct children of this comment (for display when expanded)
-    const directReplies = postComments.filter(c => c.parentId === comment.id);
+  const renderComment = (comment: Comment, isReply: boolean = false, flatMode: boolean = false) => {
+    // Convert to ServiceComment format for shared descendant function
+    const serviceComments = postComments.map(c => ({
+      ...c,
+      authorId: c.author.id,
+      authorName: c.author.name,
+      authorUsername: c.author.username || '',
+      authorRole: c.author.role
+    }));
 
-    // Get the TOTAL count of ALL descendants (direct + nested) from our memoized Map
-    // This is O(1) lookup instead of O(n) recursive calculation on every render
-    // Example: If comment has 2 direct replies, and one of those has 3 replies,
-    // totalReplyCount = 5 (not just 2)
+    // Get ALL descendants (not just direct children) for true flat display
+    const allDescendants = getAllCommentDescendants(comment.id, serviceComments);
+
+    // Sort descendants by creation time for consistent chronological order
+    const sortedDescendants = allDescendants.sort((a, b) =>
+      a.createdAt.getTime() - b.createdAt.getTime()
+    );
+
+    // Get the TOTAL count of ALL descendants from our memoized Map
     const totalReplyCount = replyCountMap.get(comment.id) || 0;
 
     // Check if this comment has any replies to show the "View replies" button
@@ -277,9 +289,17 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
         </div>
 
         {/* Flat replies - all at same indentation level */}
-        {areRepliesExpanded && hasReplies && (
+        {/* Only render if NOT in flatMode (prevents recursive nesting) */}
+        {!flatMode && areRepliesExpanded && hasReplies && (
           <div className="ml-0">
-            {directReplies.map(reply => renderComment(reply, true))}
+            {sortedDescendants.map(descendant => {
+              // Find the original Comment object for this descendant
+              const descendantComment = postComments.find(c => c.id === descendant.id);
+              if (!descendantComment) return null;
+
+              // Render each descendant with flatMode=true to prevent further nesting
+              return renderComment(descendantComment, true, true);
+            })}
           </div>
         )}
       </div>
