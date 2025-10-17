@@ -18,15 +18,14 @@ interface CommentSectionProps {
   onAddComment: (postId: string, content: string, parentId?: string | null) => void;
   // Function to trigger authentication modal when login is required
   onLoginRequired: () => void;
+  // Controlled expanded state from parent
+  isExpanded: boolean;
 }
 
-export default function CommentSection({ postId, comments, onAddComment, onLoginRequired }: CommentSectionProps) {
+export default function CommentSection({ postId, comments, onAddComment, onLoginRequired, isExpanded }: CommentSectionProps) {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // State to track whether comments section is expanded or collapsed
-  const [isExpanded, setIsExpanded] = useState(false);
 
   // State to track the content of the new comment being typed
   const [newComment, setNewComment] = useState('');
@@ -331,23 +330,10 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
   };
 
   return (
-    <div className="mt-2 pt-3 border-t border-gray-200 dark:border-gray-600">
-      {/* Clickable header that toggles comments visibility - HN style */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-medium hover:underline transition-colors mb-3 text-gray-600 dark:text-gray-400"
-      >
-        {/* Simple arrow that rotates based on expanded state */}
-        <span className={`transform transition-transform text-xs ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
-          ▶
-        </span>
-        {postComments.length === 0 ? 'Add comment' : `${postComments.length} comment${postComments.length !== 1 ? 's' : ''}`}
-      </button>
-      
+    <>
       {/* Comments content - only visible when expanded */}
-      {/* connect is expanded to state of app with auth changes */}
       {isExpanded && (
-        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+        <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
           {/* Render existing comments if any exist */}
           {topLevelComments.length > 0 && (
             <div className="mb-4">
@@ -434,6 +420,6 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
         onConfirm={handleDeleteConfirm}
         replyCount={commentToDelete ? replyCountMap.get(commentToDelete) || 0 : 0}
       />
-    </div>
+    </>
   );
 }

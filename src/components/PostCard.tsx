@@ -6,9 +6,12 @@ import ClickableUsername from './ClickableUsername'; // Added for user profile n
 // This component displays the main content of a forum post in Hacker News style
 interface PostCardProps {
   post: Post;
+  commentCount: number;
+  isCommentsExpanded: boolean;
+  onToggleComments: () => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, commentCount, isCommentsExpanded, onToggleComments }: PostCardProps) {
   // DARK THEME CLASSES in PostCard:
   // bg-white -> dark:bg-gray-800 (post cards use gray-800 in dark mode)
   // border-gray-200 -> dark:border-gray-600 (darker borders)
@@ -49,8 +52,8 @@ export default function PostCard({ post }: PostCardProps) {
       {post.tags.length > 0 && (
         <div className="flex gap-1 flex-wrap">
           {post.tags.map((tag, index) => (
-            <span 
-              key={index} 
+            <span
+              key={index}
               // DARK THEME: Tag styling
               // bg-gray-200 -> dark:bg-gray-700 (tag background)
               // text-gray-600 -> dark:text-gray-300 (tag text)
@@ -61,6 +64,18 @@ export default function PostCard({ post }: PostCardProps) {
           ))}
         </div>
       )}
+
+      {/* Comment toggle button - Instagram style metadata */}
+      <button
+        onClick={onToggleComments}
+        className="flex items-center gap-2 text-xs hover:underline transition-colors mt-2 text-gray-600 dark:text-gray-400"
+      >
+        {/* Simple arrow that rotates based on expanded state */}
+        <span className={`transform transition-transform ${isCommentsExpanded ? 'rotate-90' : 'rotate-0'}`}>
+          ▶
+        </span>
+        {commentCount === 0 ? 'Add comment' : `${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
+      </button>
     </div>
   );
 }

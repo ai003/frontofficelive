@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Post, Comment } from '../types';
 import PostCard from './PostCard';
 import CommentSection from './CommentSection';
@@ -14,26 +15,54 @@ interface PostListProps {
 }
 
 export default function PostList({ posts, comments, onAddComment, onLoginRequired }: PostListProps) {
+  // Track which posts have their comments expanded
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+
+  // Toggle comments visibility for a specific post
+  const toggleComments = (postId: string) => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className="space-y-2">
       {/* Map through each post and render it with its associated components */}
-      {posts.map(post => (
-        <div key={post.id}>
-          {/* Render the main post content */}
-          <PostCard post={post} />
-          
-          {/* Render the comments section for this specific post */}
-          <CommentSection 
-            postId={post.id} 
-            comments={comments}
-            // Pass the comment handler function down to CommentSection
-            // This allows comments to be added and saved to localStorage
-            onAddComment={onAddComment}
-            // Pass login handler for authentication-aware commenting
-            onLoginRequired={onLoginRequired}
-          />
-        </div>
-      ))}
+      {posts.map(post => {
+        const postComments = comments.filter(c => c.postId === post.id);
+        const isExpanded = expandedPosts.has(post.id);
+
+        return (
+          <div key={post.id}>
+            {/* Render the main post content with comment toggle button */}
+            <PostCard
+              post={post}
+              commentCount={postComments.length}
+              isCommentsExpanded={isExpanded}
+              onToggleComments={() => toggleComments(post.id)}
+            />
+
+            {/* Render the comments section for this specific post */}
+            <CommentSection
+              postId={post.id}
+              comments={comments}
+              // Pass the comment handler function down to CommentSection
+              // This allows comments to be added and saved to localStorage
+              onAddComment={onAddComment}
+              // Pass login handler for authentication-aware commenting
+              onLoginRequired={onLoginRequired}
+              // Pass expanded state from parent
+              isExpanded={isExpanded}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
