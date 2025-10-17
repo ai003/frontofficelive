@@ -333,18 +333,19 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
     <>
       {/* Comments content - only visible when expanded */}
       {isExpanded && (
-        <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-          {/* Render existing comments if any exist */}
-          {topLevelComments.length > 0 && (
-            <div className="mb-4">
-              {topLevelComments.map(comment => renderComment(comment))}
-            </div>
-          )}
-          
-          {/* Single comment input at bottom - handles both top-level and replies */}
-          <div
-            className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
-          >
+        <>
+          <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+            {/* Render existing comments if any exist */}
+            {topLevelComments.length > 0 && (
+              <div className="mb-4">
+                {topLevelComments.map(comment => renderComment(comment))}
+              </div>
+            )}
+
+            {/* Single comment input at bottom - handles both top-level and replies */}
+            <div
+              className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600"
+            >
             {isAuthenticated ? (
               /* Comment form for authenticated users */
               <form onSubmit={handleCommentSubmit}>
@@ -408,6 +409,7 @@ export default function CommentSection({ postId, comments, onAddComment, onLogin
             )}
           </div>
         </div>
+      </>
       )}
 
       {/* Delete confirmation modal */}

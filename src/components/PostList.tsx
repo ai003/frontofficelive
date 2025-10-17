@@ -32,7 +32,7 @@ export default function PostList({ posts, comments, onAddComment, onLoginRequire
   };
 
   return (
-    <div className="space-y-2">
+    <div>
       {/* Map through each post and render it with its associated components */}
       {posts.map(post => {
         const postComments = comments.filter(c => c.postId === post.id);
@@ -60,6 +60,9 @@ export default function PostList({ posts, comments, onAddComment, onLoginRequire
               // Pass expanded state from parent
               isExpanded={isExpanded}
             />
+
+            {/* Separator line below each post - always visible */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600" />
           </div>
         );
       })}
