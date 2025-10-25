@@ -35,7 +35,7 @@ export default function PostList({ posts, comments, onAddComment, onLoginRequire
     <div>
       {/* Map through each post and render it with its associated components */}
       {posts.map(post => {
-        const postComments = comments.filter(c => c.postId === post.id);
+        const postCommentsLength = comments.filter(c => c.postId === post.id).length;
         const isExpanded = expandedPosts.has(post.id);
 
         return (
@@ -43,7 +43,7 @@ export default function PostList({ posts, comments, onAddComment, onLoginRequire
             {/* Render the main post content with comment toggle button */}
             <PostCard
               post={post}
-              commentCount={postComments.length}
+              commentCount={postCommentsLength}
               isCommentsExpanded={isExpanded}
               onToggleComments={() => toggleComments(post.id)}
             />

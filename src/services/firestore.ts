@@ -124,15 +124,16 @@ export async function loadPosts(): Promise<ServicePost[]> {
       collection(db, 'posts'),
       orderBy('createdAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(postsQuery);
-    
+
     return snapshot.docs.map(doc => {
       const data = doc.data() as FirestorePost;
       return {
         ...data,
-        id: doc.id,  // Add the document ID
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        commentCount: data.commentCount || 0
       };
     });
   } catch (error) {
@@ -186,16 +187,17 @@ export async function addPost(
       authorName,
       authorRole,
       createdAt: Timestamp.now(),
-      tags,
-      commentCount: 0
+      tags
+      // commentCount removed - not stored in database anymore
     };
 
     // Set the document with the ID included
     await setDoc(docRef, newPost);
-    
+
     return {
       ...newPost,
-      createdAt: newPost.createdAt.toDate()
+      createdAt: newPost.createdAt.toDate(),
+      commentCount: 0  // Provide for ServicePost type compatibility
     };
   } catch (error) {
     console.error('Error adding post:', error);
@@ -259,8 +261,9 @@ export function subscribeToPostsUpdates(
         const data = doc.data() as FirestorePost;
         return {
           ...data,
-          id: doc.id,  // Document ID already included
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+          id: doc.id,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+          commentCount: data.commentCount || 0
         };
       });
       callback(posts);
@@ -366,15 +369,199 @@ export async function deleteComment(
     // Step 4: Delete the parent comment
     await deleteDoc(doc(db, 'comments', commentId));
 
-    // Step 5: Update post's commentCount (decrement by total deleted)
+    // Step 5: Return total deleted count
+    // Note: We no longer maintain the stored commentCount field in post documents
+    // Comment counts are calculated dynamically by filtering the comments collection
+    // This prevents the field from getting out of sync (like going negative)
     const totalDeleted = descendants.length + 1;
-    await updateDoc(doc(db, 'posts', postId), {
-      commentCount: increment(-totalDeleted)
-    });
 
     return totalDeleted;
   } catch (error) {
     console.error('Error deleting comment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get user by username for profile pages
+ *
+ * @param username - Username to search for (case-sensitive)
+ * @returns User document with Date conversion or null if not found
+ */
+export async function getUserByUsername(username: string): Promise<{
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'user';
+  createdAt: Date;
+  avatar?: string;
+  bio?: string;
+} | null> {
+  try {
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('username', '==', username)
+    );
+    const snapshot = await getDocs(usersQuery);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data() as FirestoreUser;
+
+    return {
+      id: userDoc.id,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      username: userData.username,
+      email: userData.email,
+      role: userData.role,
+      createdAt: userData.createdAt instanceof Timestamp ? userData.createdAt.toDate() : userData.createdAt as any as Date,
+      avatar: userData.avatar,
+      bio: userData.bio
+    };
+  } catch (error) {
+    console.error('Error fetching user by username:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all posts by a specific user
+ *
+ * @param userId - User ID to filter posts by
+ * @returns Array of user's posts sorted by createdAt descending
+ */
+export async function getUserPosts(userId: string): Promise<ServicePost[]> {
+  try {
+    const postsQuery = query(
+      collection(db, 'posts'),
+      where('authorId', '==', userId)
+    );
+
+    const snapshot = await getDocs(postsQuery);
+
+    // Sort in JavaScript instead of Firestore to avoid index requirement
+    const posts = snapshot.docs.map(doc => {
+      const data = doc.data() as FirestorePost;
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        commentCount: data.commentCount || 0
+      };
+    });
+
+    // Sort by createdAt descending (newest first)
+    return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all comments by a specific user
+ *
+ * @param userId - User ID to filter comments by
+ * @returns Array of user's comments sorted by createdAt descending
+ */
+export async function getUserComments(userId: string): Promise<ServiceComment[]> {
+  try {
+    const commentsQuery = query(
+      collection(db, 'comments'),
+      where('authorId', '==', userId)
+    );
+
+    const snapshot = await getDocs(commentsQuery);
+
+    // Sort in JavaScript instead of Firestore to avoid index requirement
+    const comments = snapshot.docs.map(doc => {
+      const data = doc.data() as FirestoreComment;
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+      };
+    });
+
+    // Sort by createdAt descending (newest first)
+    return comments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch (error) {
+    console.error('Error fetching user comments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get user statistics for profile page
+ *
+ * @param userId - User ID to calculate stats for
+ * @returns Statistics object with counts, points, and join date
+ */
+export async function getUserStats(userId: string): Promise<{
+  totalPosts: number;
+  totalComments: number;
+  forumPoints: number;
+  joinDate: Date;
+}> {
+  try {
+    // Fetch user document for join date
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
+    const userData = userDoc.data() as FirestoreUser;
+
+    // Fetch posts and comments in parallel
+    const [posts, comments] = await Promise.all([
+      getUserPosts(userId),
+      getUserComments(userId)
+    ]);
+
+    const totalPosts = posts.length;
+    const totalComments = comments.length;
+    const forumPoints = (totalPosts * 10) + (totalComments * 2);
+    const joinDate = userData.createdAt instanceof Timestamp ? userData.createdAt.toDate() : userData.createdAt;
+
+    return {
+      totalPosts,
+      totalComments,
+      forumPoints,
+      joinDate
+    };
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single post by ID
+ *
+ * @param postId - Post ID to fetch
+ * @returns Post document with Date conversion or null if not found
+ */
+export async function getPostById(postId: string): Promise<ServicePost | null> {
+  try {
+    const postDoc = await getDoc(doc(db, 'posts', postId));
+
+    if (!postDoc.exists()) {
+      return null;
+    }
+
+    const data = postDoc.data() as FirestorePost;
+    return {
+      ...data,
+      id: postDoc.id,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+    };
+  } catch (error) {
+    console.error('Error fetching post by ID:', error);
     throw error;
   }
 }

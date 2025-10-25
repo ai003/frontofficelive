@@ -20,7 +20,7 @@ export interface FirestorePost {
   authorRole: 'admin' | 'user';
   createdAt: Timestamp;
   tags: string[];
-  commentCount: number;
+  commentCount?: number;  // Optional: old posts have it, new posts don't
 }
 
 export interface FirestoreComment {

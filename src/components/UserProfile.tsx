@@ -1,23 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Calendar, Award, Edit } from 'lucide-react';
+import { User, Calendar, Edit, ChevronLeft, Trophy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import Header from './Header';
-import type { FirestoreUser } from '../types/firestore';
+import PostCard from './PostCard';
+import ProfileCommentItem from './ProfileCommentItem';
+import type { Post } from '../types';
+import type { ServicePost, ServiceComment } from '../services/firestore';
+import { getUserByUsername, getUserPosts, getUserComments, getUserStats, loadComments } from '../services/firestore';
 
 /**
- * ProfileUser interface extends FirestoreUser with Date conversion
- *
- * FirestoreUser uses Timestamp, but we need Date objects for display.
- * Bio field is optional and may not exist in all user documents.
+ * ProfileUser interface - User data with Date conversion
  */
-interface ProfileUser extends Omit<FirestoreUser, 'createdAt'> {
+interface ProfileUser {
   id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'user';
   createdAt: Date;
   bio?: string;
+  avatar?: string;
 }
+
+/**
+ * User stats interface
+ */
+interface UserStats {
+  totalPosts: number;
+  totalComments: number;
+  forumPoints: number;
+  joinDate: Date;
+}
+
+/**
+ * Tab type for activity section
+ */
+type ActivityTab = 'posts' | 'comments' | 'likes';
 
 /**
  * Format date for display in "Member Since" section
@@ -31,54 +51,51 @@ const formatDate = (date: Date) => {
 };
 
 /**
- * Calculate forum points based on activity and role
- *
- * Formula: (days since joined × 10) + 500 bonus for admins
- * Minimum 100 points to avoid showing 0 for new users
+ * Helper to convert ServicePost to Post for PostCard component
  */
-const calculateForumPoints = (joinDate: Date, role: string) => {
-  const now = new Date();
-  const daysActive = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-  let points = daysActive * 10;
-  if (role === 'admin') points += 500;
-  return Math.max(points, 100);
-};
+const convertServicePostToPost = (servicePost: ServicePost): Post => ({
+  ...servicePost,
+  author: {
+    id: servicePost.authorId,
+    name: servicePost.authorName,
+    role: servicePost.authorRole
+  }
+});
 
 /**
  * UserProfile component - Complete user profile page
  *
- * Features implemented:
+ * Features:
  * - URL routing via /profile/:username
  * - Firebase user lookup by username
  * - Profile data display (avatar, name, bio, stats)
- * - Forum points calculation
+ * - Forum points calculation (posts × 10 + comments × 2)
+ * - Tabbed activity system (Posts/Comments/Likes)
+ * - Real user posts and comments from Firebase
+ * - Back button to return to feed
  * - Admin badge display
  * - Edit Profile button (own profile only)
  * - Full dark mode support
  * - Loading and error states
- * - Back navigation
- *
- * Access Control Note:
- * TODO: Implement different views for own vs. other user profiles
- * Currently shows same view to everyone, Edit button only shows on own profile
- *
- * Future Enhancements:
- * - Post/comment count aggregation (currently shows placeholder "--")
- * - Recent activity feed
- * - Profile editing functionality
  */
 export default function UserProfile() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [userPosts, setUserPosts] = useState<ServicePost[]>([]);
+  const [userComments, setUserComments] = useState<ServiceComment[]>([]);
+  const [allComments, setAllComments] = useState<ServiceComment[]>([]); // All comments for accurate counts
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ActivityTab>('posts');
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
   const isOwnProfile = currentUser?.username === profileUser?.username;
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       if (!username) {
         setError('Username is required');
         setLoading(false);
@@ -89,43 +106,64 @@ export default function UserProfile() {
         setLoading(true);
         setError(null);
 
-        const usersQuery = query(
-          collection(db, 'users'),
-          where('username', '==', username)
-        );
+        // Fetch user by username
+        const user = await getUserByUsername(username);
 
-        const snapshot = await getDocs(usersQuery);
-
-        if (snapshot.empty) {
+        if (!user) {
           setError('User not found');
           setProfileUser(null);
-        } else {
-          const userDoc = snapshot.docs[0];
-          const userData = userDoc.data() as FirestoreUser;
-
-          setProfileUser({
-            ...userData,
-            id: userDoc.id,
-            createdAt: userData.createdAt.toDate(),
-            bio: userData.bio || ''
-          });
+          setLoading(false);
+          return;
         }
+
+        setProfileUser(user);
+
+        // Fetch user stats, posts, comments, and ALL comments for accurate counts
+        const [stats, posts, comments, allCommentsData] = await Promise.all([
+          getUserStats(user.id),
+          getUserPosts(user.id),
+          getUserComments(user.id),
+          loadComments() // Load ALL comments to calculate accurate counts
+        ]);
+
+        setUserStats(stats);
+        setUserPosts(posts);
+        setUserComments(comments.slice(0, 20)); // Limit to 20 most recent
+        setAllComments(allCommentsData); // Store all comments for count calculation
+
+        setLoading(false);
       } catch (err) {
-        console.error('Error fetching user:', err);
+        console.error('Error fetching user data:', err);
         setError('Failed to load user profile');
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
+    fetchUserData();
   }, [username]);
+
+  const handleToggleComments = (postId: string) => {
+    setExpandedPosts(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
+  // Calculate actual comment count for a post by counting comments
+  const getCommentCount = (postId: string): number => {
+    return allComments.filter(c => c.postId === postId).length;
+  };
 
   const handleEditProfile = () => {
     console.log('Edit profile clicked - to be implemented');
   };
 
-  // Placeholder function for Header component - profile page doesn't need login modal
+  // Placeholder function for Header component
   const handleLoginRequired = () => {
     // No-op: profile page doesn't trigger auth modal
   };
@@ -144,13 +182,13 @@ export default function UserProfile() {
     );
   }
 
-  if (error || !profileUser) {
+  if (error || !profileUser || !userStats) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header onLoginRequired={handleLoginRequired} />
         <div className="max-w-4xl mx-auto px-4 py-8 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-red-600 dark:text-red-400 text-lg mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-400 text-lg mb-4">{error || 'User not found'}</p>
             <button
               onClick={() => navigate('/')}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -163,7 +201,6 @@ export default function UserProfile() {
     );
   }
 
-  const forumPoints = calculateForumPoints(profileUser.createdAt, profileUser.role);
   const displayName = `${profileUser.firstName} ${profileUser.lastName}`.trim();
 
   return (
@@ -173,6 +210,15 @@ export default function UserProfile() {
 
       {/* Profile Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back to Feed</span>
+        </button>
+
         {/* Profile Card */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           {/* Profile Header Section */}
@@ -241,18 +287,18 @@ export default function UserProfile() {
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member Since</p>
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    {formatDate(profileUser.createdAt)}
+                    {formatDate(userStats.joinDate)}
                   </p>
                 </div>
               </div>
 
               {/* Forum Points */}
               <div className="flex items-center gap-3">
-                <Award className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <Trophy className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Forum Points</p>
-                  <p className="font-semibold text-gray-900 dark:text-white">
-                    {forumPoints.toLocaleString()}
+                  <p className="font-semibold text-yellow-600 dark:text-yellow-400">
+                    {userStats.forumPoints.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -261,8 +307,7 @@ export default function UserProfile() {
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Posts</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {/* TODO: Implement post count aggregation from Firebase */}
-                  --
+                  {userStats.totalPosts}
                 </p>
               </div>
 
@@ -270,21 +315,94 @@ export default function UserProfile() {
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Comments</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {/* TODO: Implement comment count aggregation from Firebase */}
-                  --
+                  {userStats.totalComments}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* TODO: Add access control logic based on viewing own vs other's profile */}
-        {/* Placeholder for Activity Section */}
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
-          <div className="text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">Activity feed coming soon...</p>
-            <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Posts and comments will appear here</p>
+        {/* Activity Section with Tabs */}
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          {/* Tab Navigation */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  activeTab === 'posts'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                Posts
+              </button>
+              <button
+                onClick={() => setActiveTab('comments')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  activeTab === 'comments'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                Comments
+              </button>
+              <button
+                disabled
+                className="px-4 py-2 rounded-full text-sm font-medium bg-transparent text-gray-400 dark:text-gray-600 cursor-not-allowed"
+              >
+                Likes (coming soon)
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {/* Posts Tab */}
+            {activeTab === 'posts' && (
+              <div className="space-y-3">
+                {userPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500 dark:text-gray-400">No posts yet</p>
+                  </div>
+                ) : (
+                  userPosts.map(post => {
+                    const actualCommentCount = getCommentCount(post.id);
+                    return (
+                      <PostCard
+                        key={post.id}
+                        post={convertServicePostToPost(post)}
+                        commentCount={actualCommentCount}
+                        isCommentsExpanded={expandedPosts.has(post.id)}
+                        onToggleComments={() => handleToggleComments(post.id)}
+                      />
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Comments Tab */}
+            {activeTab === 'comments' && (
+              <div className="space-y-3">
+                {userComments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500 dark:text-gray-400">No comments yet</p>
+                  </div>
+                ) : (
+                  userComments.map(comment => (
+                    <ProfileCommentItem key={comment.id} comment={comment} />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Likes Tab */}
+            {activeTab === 'likes' && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400">Likes feature coming soon...</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
