@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc, where, deleteDoc } from 'firebase/firestore';
 import type { FirestorePost, FirestoreComment, FirestoreUser } from '../types/firestore';
 
 // Display name utilities for consistent name display throughout the app
