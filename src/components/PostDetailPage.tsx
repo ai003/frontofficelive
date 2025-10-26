@@ -49,12 +49,11 @@ export default function PostDetailPage() {
 
   // Comments state
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsExpanded, setCommentsExpanded] = useState(true); // Always expanded on detail page
+  const commentsExpanded = true; // Always expanded on detail page
 
   // Placeholder function for Header component -- will need to delete the console log
   const handleLoginRequired = () => {
     // Could integrate auth modal here if needed
-    console.log('Login required');
   };
 
   // Convert ServicePost to Post type for component usage
