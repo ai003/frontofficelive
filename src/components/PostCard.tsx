@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Post } from '../types';
 import ProfilePicture from './ProfilePicture';
 import ClickableUsername from './ClickableUsername'; // Added for user profile navigation
@@ -9,9 +10,19 @@ interface PostCardProps {
   commentCount: number;
   isCommentsExpanded: boolean;
   onToggleComments: () => void;
+  disableNestedClicks?: boolean;
 }
 
-export default function PostCard({ post, commentCount, isCommentsExpanded, onToggleComments }: PostCardProps) {
+export default function PostCard({ post, commentCount, isCommentsExpanded, onToggleComments, disableNestedClicks = false }: PostCardProps) {
+  const navigate = useNavigate();
+
+  // Handle title click - navigate to post detail page
+  const handleTitleClick = () => {
+    if (!disableNestedClicks) {
+      navigate(`/post/${post.id}`);
+    }
+  };
+
   // DARK THEME CLASSES in PostCard:
   // bg-white -> dark:bg-gray-800 (post cards use gray-800 in dark mode)
   // border-gray-200 -> dark:border-gray-600 (darker borders)
@@ -22,7 +33,10 @@ export default function PostCard({ post, commentCount, isCommentsExpanded, onTog
       {/* Post title with clean typography */}
       {/* DARK THEME: Post title text color */}
       {/* text-gray-900 (dark text on light) -> dark:text-gray-100 (light text on dark) */}
-      <h2 className="text-lg font-medium leading-tight mb-2 hover:underline cursor-pointer text-gray-900 dark:text-gray-100">
+      <h2
+        onClick={handleTitleClick}
+        className={`text-lg font-medium leading-tight mb-2 text-gray-900 dark:text-gray-100 ${!disableNestedClicks ? 'hover:underline cursor-pointer' : ''}`}
+      >
         {post.title}
       </h2>
       
@@ -31,12 +45,16 @@ export default function PostCard({ post, commentCount, isCommentsExpanded, onTog
       {/* text-gray-600 (medium gray) -> dark:text-gray-400 (lighter gray in dark mode) */}
       <div className="flex items-center gap-2 text-sm mb-3 text-gray-600 dark:text-gray-400">
         <ProfilePicture user={post.author} size="w-6 h-6" />
-        {/* Replaced static author name with ClickableUsername for profile navigation */}
-        <ClickableUsername
-          userId={post.author.id}
-          displayName={post.author.name}
-          className="font-medium"
-        />
+        {/* Conditionally render username as clickable or plain text based on context */}
+        {disableNestedClicks ? (
+          <span className="font-medium">{post.author.name}</span>
+        ) : (
+          <ClickableUsername
+            userId={post.author.id}
+            displayName={post.author.name}
+            className="font-medium"
+          />
+        )}
         <span>•</span>
         <span>{post.createdAt.toLocaleDateString()}</span>
       </div>
@@ -66,16 +84,22 @@ export default function PostCard({ post, commentCount, isCommentsExpanded, onTog
       )}
 
       {/* Comment toggle button - Instagram style metadata */}
-      <button
-        onClick={onToggleComments}
-        className="flex items-center gap-2 text-xs hover:underline transition-colors mt-2 text-gray-600 dark:text-gray-400"
-      >
-        {/* Simple arrow that rotates based on expanded state */}
-        <span className={`transform transition-transform ${isCommentsExpanded ? 'rotate-90' : 'rotate-0'}`}>
-          ▶
-        </span>
-        {commentCount === 0 ? 'Add comment' : `${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
-      </button>
+      {disableNestedClicks ? (
+        <div className="flex items-center gap-2 text-xs mt-2 text-gray-600 dark:text-gray-400">
+          {commentCount === 0 ? 'No comments' : `${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
+        </div>
+      ) : (
+        <button
+          onClick={onToggleComments}
+          className="flex items-center gap-2 text-xs hover:underline transition-colors mt-2 text-gray-600 dark:text-gray-400"
+        >
+          {/* Simple arrow that rotates based on expanded state */}
+          <span className={`transform transition-transform ${isCommentsExpanded ? 'rotate-90' : 'rotate-0'}`}>
+            ▶
+          </span>
+          {commentCount === 0 ? 'Add comment' : `${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
+        </button>
+      )}
     </div>
   );
 }

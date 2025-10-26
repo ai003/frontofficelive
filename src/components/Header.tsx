@@ -89,7 +89,7 @@ export default function Header({ onLoginRequired }: HeaderProps) {
               
               {/* User dropdown with logout */}
               {showUserDropdown && (
-                <div className="absolute top-full left-0 mt-1 w-full min-w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
+                <div className="absolute top-full right-0 mt-1 min-w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
                   <div className="p-2">
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
                       <p className="font-medium text-gray-900 dark:text-gray-100 truncate" title={getDisplayName(user)}>

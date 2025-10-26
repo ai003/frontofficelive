@@ -77,6 +77,25 @@ const convertServicePostToPost = (servicePost: ServicePost): Post => ({
  * - Edit Profile button (own profile only)
  * - Full dark mode support
  * - Loading and error states
+ *
+ * KNOWN ISSUE - Nested Clickable Elements:
+ * Posts in profile have wrapper onClick for navigation. ALL clicks on the card
+ * (title, username, comment toggle) navigate to /post/:id due to event bubbling.
+ *
+ * Current behavior (simplified approach):
+ * - Removed e.stopPropagation() - entire card acts as single click target
+ * - Removed handleToggleComments function (not needed)
+ * - Title hover underline still shows (misleading visual cue)
+ * - Username appears clickable but triggers wrapper navigation
+ * - Comment toggle arrow also triggers wrapper navigation
+ *
+ * SOLUTION FOR NEXT PHASE:
+ * Extend PostCard component with optional prop: `disableNestedClicks?: boolean`
+ * When true, PostCard should:
+ * - Remove hover:underline and cursor-pointer from title
+ * - Render username as plain text instead of ClickableUsername
+ * - Hide comment toggle button entirely (or make it non-interactive)
+ * This eliminates confusing visual cues while reusing existing component.
  */
 export default function UserProfile() {
   const { username } = useParams<{ username: string }>();
@@ -90,7 +109,6 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActivityTab>('posts');
-  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
   const isOwnProfile = currentUser?.username === profileUser?.username;
 
@@ -141,18 +159,6 @@ export default function UserProfile() {
 
     fetchUserData();
   }, [username]);
-
-  const handleToggleComments = (postId: string) => {
-    setExpandedPosts(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-  };
 
   // Calculate actual comment count for a post by counting comments
   const getCommentCount = (postId: string): number => {
@@ -279,42 +285,51 @@ export default function UserProfile() {
           </div>
 
           {/* Stats Section */}
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="px-6 py-8 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 md:gap-4">
               {/* Member Since */}
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member Since</p>
-                  <p className="font-semibold text-gray-900 dark:text-white">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Member Since</p>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
                     {formatDate(userStats.joinDate)}
                   </p>
                 </div>
               </div>
 
+              {/* Divider - hidden on mobile */}
+              <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+
               {/* Forum Points */}
-              <div className="flex items-center gap-3">
-                <Trophy className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Forum Points</p>
-                  <p className="font-semibold text-yellow-600 dark:text-yellow-400">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Forum Points</p>
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                  <p className="text-lg font-semibold text-yellow-600 dark:text-yellow-400">
                     {userStats.forumPoints.toLocaleString()}
                   </p>
                 </div>
               </div>
 
+              {/* Divider - hidden on mobile */}
+              <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+
               {/* Posts Count */}
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Posts</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Posts</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
                   {userStats.totalPosts}
                 </p>
               </div>
 
+              {/* Divider - hidden on mobile */}
+              <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+
               {/* Comments Count */}
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Comments</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Comments</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
                   {userStats.totalComments}
                 </p>
               </div>
@@ -369,13 +384,19 @@ export default function UserProfile() {
                   userPosts.map(post => {
                     const actualCommentCount = getCommentCount(post.id);
                     return (
-                      <PostCard
+                      <div
                         key={post.id}
-                        post={convertServicePostToPost(post)}
-                        commentCount={actualCommentCount}
-                        isCommentsExpanded={expandedPosts.has(post.id)}
-                        onToggleComments={() => handleToggleComments(post.id)}
-                      />
+                        onClick={() => navigate(`/post/${post.id}`)}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        <PostCard
+                          post={convertServicePostToPost(post)}
+                          commentCount={actualCommentCount}
+                          isCommentsExpanded={false}
+                          onToggleComments={() => {}}
+                          disableNestedClicks={true}
+                        />
+                      </div>
                     );
                   })
                 )}

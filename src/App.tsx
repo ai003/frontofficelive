@@ -6,6 +6,7 @@ import PostList from './components/PostList';
 import CreatePost from './components/CreatePost';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
+import PostDetailPage from './components/PostDetailPage';
 import type { Post, Comment } from './types';
 import { loadPosts, loadComments, addPost as addPostToFirebase, addComment as addCommentToFirebase, subscribeToPostsUpdates, subscribeToCommentsUpdates, getDisplayName, type ServicePost, type ServiceComment } from './services/firestore';
 
@@ -240,6 +241,7 @@ function App() {
         <Routes>
           <Route path="/" element={<ForumContent />} />
           <Route path="/profile/:username" element={<UserProfile />} />
+          <Route path="/post/:postId" element={<PostDetailPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
