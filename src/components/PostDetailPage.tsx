@@ -10,7 +10,6 @@ import type { Post, Comment } from '../types';
 import type { ServicePost, ServiceComment } from '../services/firestore';
 import {
   getPostById,
-  getUsernameById,
   loadComments,
   subscribeToCommentsUpdates,
   addComment as addCommentToFirebase,
