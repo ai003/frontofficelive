@@ -43,7 +43,6 @@ export default function PostDetailPage() {
 
   // Post state
   const [post, setPost] = useState<Post | null>(null);
-  const [authorUsername, setAuthorUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,8 +104,6 @@ export default function PostDetailPage() {
         setPost(convertedPost);
 
         // Fetch author's username for back button navigation
-        const username = await getUsernameById(postData.authorId);
-        setAuthorUsername(username);
 
         setLoading(false);
       } catch (err) {
